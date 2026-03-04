@@ -1,8 +1,9 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Plus, Image as ImageIcon, Palette, Trash2, X, Calendar as CalendarIcon, Monitor, CheckSquare, Square } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { storage } from './firebase';
+import { storage, db } from './firebase';
 import { ref, uploadString, getDownloadURL, deleteObject } from 'firebase/storage';
+import { collection, getDocs, setDoc, deleteDoc, doc, getDoc } from 'firebase/firestore';
 
 type Product = {
   id: string;
@@ -60,20 +61,27 @@ export default function App() {
   const [isSelectionMode, setIsSelectionMode] = useState(false);
 
   useEffect(() => {
-    const fetchProducts = async () => {
+    const fetchData = async () => {
+      if (!db) {
+        setIsLoading(false);
+        return;
+      }
       try {
-        const res = await fetch('/api/products');
-        if (res.ok) {
-          const data = await res.json();
-          setProducts(data);
+        const productsSnapshot = await getDocs(collection(db, 'products'));
+        const productsData = productsSnapshot.docs.map(d => d.data() as Product);
+        setProducts(productsData);
+
+        const holidaysDoc = await getDoc(doc(db, 'settings', 'holidays'));
+        if (holidaysDoc.exists()) {
+          setHolidays(holidaysDoc.data().dates || []);
         }
       } catch (error) {
-        console.error('Failed to fetch products:', error);
+        console.error('Failed to fetch data:', error);
       } finally {
         setIsLoading(false);
       }
     };
-    fetchProducts();
+    fetchData();
   }, []);
 
   const [viewImageProduct, setViewImageProduct] = useState<Product | null>(null);
@@ -254,11 +262,21 @@ export default function App() {
     setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1));
   };
 
-  const toggleHoliday = () => {
+  const toggleHoliday = async () => {
+    let newHolidays;
     if (holidays.includes(selectedDateString)) {
-      setHolidays(holidays.filter(d => d !== selectedDateString));
+      newHolidays = holidays.filter(d => d !== selectedDateString);
     } else {
-      setHolidays([...holidays, selectedDateString]);
+      newHolidays = [...holidays, selectedDateString];
+    }
+    setHolidays(newHolidays);
+    
+    if (db) {
+      try {
+        await setDoc(doc(db, 'settings', 'holidays'), { dates: newHolidays });
+      } catch (error) {
+        console.error('Failed to update holidays:', error);
+      }
     }
   };
 
@@ -298,11 +316,9 @@ export default function App() {
       setProducts(products.map(p => p.id === editingProduct.id ? updatedProduct : p));
       
       try {
-        await fetch(`/api/products/${editingProduct.id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(updatedProduct),
-        });
+        if (db) {
+          await setDoc(doc(db, 'products', editingProduct.id), updatedProduct);
+        }
       } catch (error) {
         console.error('Failed to update product:', error);
       }
@@ -319,11 +335,9 @@ export default function App() {
       setProducts([...products, newProduct]);
       
       try {
-        await fetch('/api/products', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(newProduct),
-        });
+        if (db) {
+          await setDoc(doc(db, 'products', newProduct.id), newProduct);
+        }
       } catch (error) {
         console.error('Failed to save product:', error);
       }
@@ -354,7 +368,9 @@ export default function App() {
     setSelectedProductIds(prev => prev.filter(selectedId => selectedId !== id));
     
     try {
-      await fetch(`/api/products/${id}`, { method: 'DELETE' });
+      if (db) {
+        await deleteDoc(doc(db, 'products', id));
+      }
       
       if (productToDelete?.imageUrl.includes('firebasestorage.googleapis.com') && storage) {
         const imageRef = ref(storage, productToDelete.imageUrl);
@@ -375,7 +391,9 @@ export default function App() {
 
     for (const product of productsToDelete) {
       try {
-        await fetch(`/api/products/${product.id}`, { method: 'DELETE' });
+        if (db) {
+          await deleteDoc(doc(db, 'products', product.id));
+        }
         
         if (product.imageUrl.includes('firebasestorage.googleapis.com') && storage) {
           const imageRef = ref(storage, product.imageUrl);
@@ -408,11 +426,9 @@ export default function App() {
     setColorPickerProduct(null);
     
     try {
-      await fetch(`/api/products/${id}/color`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ textColor: color }),
-      });
+      if (db) {
+        await setDoc(doc(db, 'products', id), { textColor: color }, { merge: true });
+      }
     } catch (error) {
       console.error('Failed to update color:', error);
     }
