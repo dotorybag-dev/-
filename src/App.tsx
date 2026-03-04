@@ -654,7 +654,7 @@ export default function App() {
                       </span>
                     </button>
                     
-                    <div className="flex items-center ml-2">
+                    <div className="flex items-center ml-2 gap-2">
                       {isSelectionMode ? (
                         <button 
                           onClick={(e) => { e.stopPropagation(); toggleProductSelection(product.id); }}
@@ -670,15 +670,15 @@ export default function App() {
                         <>
                           <button 
                             onClick={(e) => { e.stopPropagation(); setColorPickerProduct(product); }}
-                            className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-50 rounded-full transition-colors"
+                            className="p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-50 rounded-full transition-colors"
                           >
-                            <Palette className="w-3.5 h-3.5" />
+                            <Palette className="w-4 h-4" />
                           </button>
                           <button 
                             onClick={(e) => { e.stopPropagation(); handleDeleteProduct(product.id); }}
-                            className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors"
+                            className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors"
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
+                            <Trash2 className="w-4 h-4" />
                           </button>
                         </>
                       )}
