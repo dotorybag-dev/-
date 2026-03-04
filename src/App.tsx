@@ -59,6 +59,8 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
   const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [productToDelete, setProductToDelete] = useState<string | null>(null);
+  const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -311,6 +313,7 @@ export default function App() {
         name: newName,
         imageUrl: finalImageUrl,
         textColor: newColor,
+        date: selectedDateString,
       };
       
       setProducts(products.map(p => p.id === editingProduct.id ? updatedProduct : p));
@@ -363,17 +366,25 @@ export default function App() {
   };
 
   const handleDeleteProduct = async (id: string) => {
-    const productToDelete = products.find(p => p.id === id);
+    setProductToDelete(id);
+  };
+
+  const confirmDeleteProduct = async () => {
+    if (!productToDelete) return;
+    const id = productToDelete;
+    const product = products.find(p => p.id === id);
+    
     setProducts(products.filter(p => p.id !== id));
     setSelectedProductIds(prev => prev.filter(selectedId => selectedId !== id));
+    setProductToDelete(null);
     
     try {
       if (db) {
         await deleteDoc(doc(db, 'products', id));
       }
       
-      if (productToDelete?.imageUrl.includes('firebasestorage.googleapis.com') && storage) {
-        const imageRef = ref(storage, productToDelete.imageUrl);
+      if (product?.imageUrl.includes('firebasestorage.googleapis.com') && storage) {
+        const imageRef = ref(storage, product.imageUrl);
         await deleteObject(imageRef).catch(e => console.error("Failed to delete from Firebase:", e));
       }
     } catch (error) {
@@ -383,11 +394,15 @@ export default function App() {
 
   const handleBulkDelete = async () => {
     if (selectedProductIds.length === 0) return;
-    
+    setBulkDeleteConfirm(true);
+  };
+
+  const confirmBulkDelete = async () => {
     const productsToDelete = products.filter(p => selectedProductIds.includes(p.id));
     setProducts(products.filter(p => !selectedProductIds.includes(p.id)));
     setSelectedProductIds([]);
     setIsSelectionMode(false);
+    setBulkDeleteConfirm(false);
 
     for (const product of productsToDelete) {
       try {
@@ -402,6 +417,35 @@ export default function App() {
       } catch (error) {
         console.error('Failed to delete product:', error);
       }
+    }
+  };
+
+  const handleDragStart = (e: React.DragEvent, productId: string) => {
+    e.dataTransfer.setData('productId', productId);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  const handleDrop = async (e: React.DragEvent, targetDate: Date) => {
+    e.preventDefault();
+    const productId = e.dataTransfer.getData('productId');
+    if (!productId) return;
+
+    const targetDateString = formatDate(targetDate);
+    
+    // Optimistic update
+    setProducts(products.map(p => 
+      p.id === productId ? { ...p, date: targetDateString } : p
+    ));
+
+    try {
+      if (db) {
+        await setDoc(doc(db, 'products', productId), { date: targetDateString }, { merge: true });
+      }
+    } catch (error) {
+      console.error('Failed to update product date:', error);
     }
   };
 
@@ -466,7 +510,7 @@ export default function App() {
         </header>
 
         {/* Calendar Section */}
-        <div className="px-4 py-2 bg-white z-10">
+        <div className="px-4 py-2 bg-slate-50 z-10 border-b border-gray-100">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
               <h2 className="text-base font-semibold">
@@ -512,6 +556,8 @@ export default function App() {
                 <button
                   key={`date-${i}`}
                   onClick={() => setSelectedDate(date)}
+                  onDragOver={handleDragOver}
+                  onDrop={(e) => handleDrop(e, date)}
                   className={`
                     relative h-8 w-full rounded-full flex items-center justify-center text-sm transition-all
                     ${isSelected ? (isHoliday ? 'bg-red-500 text-white font-semibold shadow-md' : 'bg-blue-600 text-white font-semibold shadow-md') : 'hover:bg-gray-50'}
@@ -595,7 +641,9 @@ export default function App() {
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.95 }}
-                    className="bg-white px-3 py-2 rounded-lg shadow-sm border border-gray-100 flex items-center justify-between group"
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, product.id)}
+                    className="bg-white px-3 py-2 rounded-lg shadow-sm border border-gray-100 flex items-center justify-between group cursor-grab active:cursor-grabbing"
                   >
                     <button 
                       className="flex-1 flex items-center gap-2 text-left"
@@ -644,6 +692,94 @@ export default function App() {
 
         {/* Modals */}
         <AnimatePresence>
+          {/* Delete Confirmation Modal */}
+          {productToDelete && (
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 z-[60] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
+              onClick={() => setProductToDelete(null)}
+            >
+              <motion.div 
+                initial={{ scale: 0.95, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.95, opacity: 0 }}
+                className="bg-white w-full max-w-sm rounded-2xl p-6 shadow-2xl"
+                onClick={e => e.stopPropagation()}
+              >
+                <div className="flex items-center gap-3 mb-4 text-red-600">
+                  <div className="w-10 h-10 bg-red-50 rounded-full flex items-center justify-center">
+                    <Trash2 className="w-5 h-5" />
+                  </div>
+                  <h3 className="font-bold text-lg text-gray-900">출고 삭제</h3>
+                </div>
+                <p className="text-gray-600 mb-6">
+                  선택하신 출고 일정을 정말 삭제하시겠습니까?<br/>
+                  이 작업은 되돌릴 수 없습니다.
+                </p>
+                <div className="flex gap-3">
+                  <button 
+                    onClick={() => setProductToDelete(null)}
+                    className="flex-1 py-3 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded-xl transition-colors"
+                  >
+                    취소
+                  </button>
+                  <button 
+                    onClick={confirmDeleteProduct}
+                    className="flex-1 py-3 px-4 bg-red-600 hover:bg-red-700 text-white font-medium rounded-xl transition-colors"
+                  >
+                    삭제하기
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+
+          {/* Bulk Delete Confirmation Modal */}
+          {bulkDeleteConfirm && (
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 z-[60] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
+              onClick={() => setBulkDeleteConfirm(false)}
+            >
+              <motion.div 
+                initial={{ scale: 0.95, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.95, opacity: 0 }}
+                className="bg-white w-full max-w-sm rounded-2xl p-6 shadow-2xl"
+                onClick={e => e.stopPropagation()}
+              >
+                <div className="flex items-center gap-3 mb-4 text-red-600">
+                  <div className="w-10 h-10 bg-red-50 rounded-full flex items-center justify-center">
+                    <Trash2 className="w-5 h-5" />
+                  </div>
+                  <h3 className="font-bold text-lg text-gray-900">선택 삭제</h3>
+                </div>
+                <p className="text-gray-600 mb-6">
+                  선택하신 {selectedProductIds.length}개의 출고 일정을 모두 삭제하시겠습니까?<br/>
+                  이 작업은 되돌릴 수 없습니다.
+                </p>
+                <div className="flex gap-3">
+                  <button 
+                    onClick={() => setBulkDeleteConfirm(false)}
+                    className="flex-1 py-3 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded-xl transition-colors"
+                  >
+                    취소
+                  </button>
+                  <button 
+                    onClick={confirmBulkDelete}
+                    className="flex-1 py-3 px-4 bg-red-600 hover:bg-red-700 text-white font-medium rounded-xl transition-colors"
+                  >
+                    삭제하기
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+
           {/* Snip Modal */}
           {snipState.image && (
             <motion.div 
@@ -740,6 +876,7 @@ export default function App() {
                         setNewName(viewImageProduct.name);
                         setNewColor(viewImageProduct.textColor);
                         setNewImage(viewImageProduct.imageUrl);
+                        setSelectedDate(new Date(viewImageProduct.date));
                         setViewImageProduct(null);
                         setIsAddModalOpen(true);
                       }}
@@ -841,9 +978,25 @@ export default function App() {
                       >
                         <ChevronLeft className="w-5 h-5 text-gray-600" />
                       </button>
-                      <span className="font-medium text-gray-700">
-                        {selectedDate.getFullYear()}년 {selectedDate.getMonth() + 1}월 {selectedDate.getDate()}일
-                      </span>
+                      <div className="relative flex-1 flex items-center justify-center">
+                        <span className="font-medium text-gray-700">
+                          {selectedDate.getFullYear()}년 {selectedDate.getMonth() + 1}월 {selectedDate.getDate()}일
+                        </span>
+                        <input 
+                          type="date"
+                          value={formatDate(selectedDate)}
+                          onChange={(e) => {
+                            if (e.target.value) {
+                              const newDate = new Date(e.target.value);
+                              setSelectedDate(newDate);
+                              if (newDate.getMonth() !== currentMonth.getMonth() || newDate.getFullYear() !== currentMonth.getFullYear()) {
+                                setCurrentMonth(new Date(newDate.getFullYear(), newDate.getMonth(), 1));
+                              }
+                            }
+                          }}
+                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                        />
+                      </div>
                       <button 
                         onClick={() => {
                           const newDate = new Date(selectedDate);
