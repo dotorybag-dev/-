@@ -98,46 +98,49 @@ export default function App() {
   const [isUploading, setIsUploading] = useState(false);
 
   // Swipe State
-  const [touchStart, setTouchStart] = useState<{x: number, y: number} | null>(null);
-  const [touchEnd, setTouchEnd] = useState<{x: number, y: number} | null>(null);
+  const [swipeStart, setSwipeStart] = useState<{x: number, y: number} | null>(null);
 
-  const onTouchStart = (e: React.TouchEvent) => {
-    setTouchEnd(null);
-    setTouchStart({ x: e.targetTouches[0].clientX, y: e.targetTouches[0].clientY });
+  const handleSwipeStart = (e: React.TouchEvent | React.MouseEvent) => {
+    if ('touches' in e) {
+      setSwipeStart({ x: e.touches[0].clientX, y: e.touches[0].clientY });
+    } else {
+      setSwipeStart({ x: e.clientX, y: e.clientY });
+    }
   };
 
-  const onTouchMove = (e: React.TouchEvent) => {
-    setTouchEnd({ x: e.targetTouches[0].clientX, y: e.targetTouches[0].clientY });
-  };
+  const handleSwipeEnd = (e: React.TouchEvent | React.MouseEvent) => {
+    if (!swipeStart) return;
 
-  const onTouchEnd = () => {
-    if (!touchStart || !touchEnd) return;
-    const distanceX = touchStart.x - touchEnd.x;
-    const distanceY = touchStart.y - touchEnd.y;
+    let endX, endY;
+    if ('changedTouches' in e) {
+      endX = e.changedTouches[0].clientX;
+      endY = e.changedTouches[0].clientY;
+    } else {
+      endX = (e as React.MouseEvent).clientX;
+      endY = (e as React.MouseEvent).clientY;
+    }
+
+    const distanceX = swipeStart.x - endX;
+    const distanceY = swipeStart.y - endY;
     const minSwipeDistance = 50;
     
     // Only trigger swipe if horizontal distance is greater than vertical distance
-    if (Math.abs(distanceX) > Math.abs(distanceY)) {
-      const isLeftSwipe = distanceX > minSwipeDistance;
-      const isRightSwipe = distanceX < -minSwipeDistance;
-
+    if (Math.abs(distanceX) > Math.abs(distanceY) && Math.abs(distanceX) > minSwipeDistance) {
+      const isLeftSwipe = distanceX > 0;
+      
+      const newDate = new Date(selectedDate);
       if (isLeftSwipe) {
-        const nextDay = new Date(selectedDate);
-        nextDay.setDate(selectedDate.getDate() + 1);
-        setSelectedDate(nextDay);
-        if (nextDay.getMonth() !== currentMonth.getMonth()) {
-          setCurrentMonth(new Date(nextDay.getFullYear(), nextDay.getMonth(), 1));
-        }
+        newDate.setDate(selectedDate.getDate() + 1);
+      } else {
+        newDate.setDate(selectedDate.getDate() - 1);
       }
-      if (isRightSwipe) {
-        const prevDay = new Date(selectedDate);
-        prevDay.setDate(selectedDate.getDate() - 1);
-        setSelectedDate(prevDay);
-        if (prevDay.getMonth() !== currentMonth.getMonth()) {
-          setCurrentMonth(new Date(prevDay.getFullYear(), prevDay.getMonth(), 1));
-        }
+      
+      setSelectedDate(newDate);
+      if (newDate.getMonth() !== currentMonth.getMonth()) {
+        setCurrentMonth(new Date(newDate.getFullYear(), newDate.getMonth(), 1));
       }
     }
+    setSwipeStart(null);
   };
 
   // Snip State
@@ -623,9 +626,11 @@ export default function App() {
         {/* Product List Section */}
         <div 
           className="flex-1 bg-gray-50 overflow-y-auto px-4 py-4"
-          onTouchStart={onTouchStart}
-          onTouchMove={onTouchMove}
-          onTouchEnd={onTouchEnd}
+          onTouchStart={handleSwipeStart}
+          onTouchEnd={handleSwipeEnd}
+          onMouseDown={handleSwipeStart}
+          onMouseUp={handleSwipeEnd}
+          onMouseLeave={() => setSwipeStart(null)}
         >
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-semibold text-gray-900">
