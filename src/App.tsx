@@ -97,6 +97,49 @@ export default function App() {
   const [newImage, setNewImage] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
 
+  // Swipe State
+  const [touchStart, setTouchStart] = useState<{x: number, y: number} | null>(null);
+  const [touchEnd, setTouchEnd] = useState<{x: number, y: number} | null>(null);
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    setTouchEnd(null);
+    setTouchStart({ x: e.targetTouches[0].clientX, y: e.targetTouches[0].clientY });
+  };
+
+  const onTouchMove = (e: React.TouchEvent) => {
+    setTouchEnd({ x: e.targetTouches[0].clientX, y: e.targetTouches[0].clientY });
+  };
+
+  const onTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+    const distanceX = touchStart.x - touchEnd.x;
+    const distanceY = touchStart.y - touchEnd.y;
+    const minSwipeDistance = 50;
+    
+    // Only trigger swipe if horizontal distance is greater than vertical distance
+    if (Math.abs(distanceX) > Math.abs(distanceY)) {
+      const isLeftSwipe = distanceX > minSwipeDistance;
+      const isRightSwipe = distanceX < -minSwipeDistance;
+
+      if (isLeftSwipe) {
+        const nextDay = new Date(selectedDate);
+        nextDay.setDate(selectedDate.getDate() + 1);
+        setSelectedDate(nextDay);
+        if (nextDay.getMonth() !== currentMonth.getMonth()) {
+          setCurrentMonth(new Date(nextDay.getFullYear(), nextDay.getMonth(), 1));
+        }
+      }
+      if (isRightSwipe) {
+        const prevDay = new Date(selectedDate);
+        prevDay.setDate(selectedDate.getDate() - 1);
+        setSelectedDate(prevDay);
+        if (prevDay.getMonth() !== currentMonth.getMonth()) {
+          setCurrentMonth(new Date(prevDay.getFullYear(), prevDay.getMonth(), 1));
+        }
+      }
+    }
+  };
+
   // Snip State
   const [snipState, setSnipState] = useState({
     image: null as string | null,
@@ -578,7 +621,12 @@ export default function App() {
         </div>
 
         {/* Product List Section */}
-        <div className="flex-1 bg-gray-50 overflow-y-auto px-4 py-4">
+        <div 
+          className="flex-1 bg-gray-50 overflow-y-auto px-4 py-4"
+          onTouchStart={onTouchStart}
+          onTouchMove={onTouchMove}
+          onTouchEnd={onTouchEnd}
+        >
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-semibold text-gray-900">
               {selectedDate.getMonth() + 1}월 {selectedDate.getDate()}일 출고 목록
