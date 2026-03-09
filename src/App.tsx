@@ -57,15 +57,18 @@ export default function App() {
   const [products, setProducts] = useState<Product[]>([]);
   const [holidays, setHolidays] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [firebaseError, setFirebaseError] = useState<string | null>(null);
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [productToDelete, setProductToDelete] = useState<string | null>(null);
   const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
+  const [activeTab, setActiveTab] = useState<'calendar' | 'list'>('calendar');
 
   useEffect(() => {
     const fetchData = async () => {
       if (!db) {
         setIsLoading(false);
+        setFirebaseError('Firebase 환경변수가 설정되지 않았습니다.');
         return;
       }
       try {
@@ -77,8 +80,13 @@ export default function App() {
         if (holidaysDoc.exists()) {
           setHolidays(holidaysDoc.data().dates || []);
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error('Failed to fetch data:', error);
+        if (error.code === 'unavailable') {
+          setFirebaseError('Firestore 데이터베이스에 연결할 수 없습니다. Firebase 콘솔에서 Firestore Database를 생성했는지 확인해주세요.');
+        } else {
+          setFirebaseError(`데이터를 불러오는 중 오류가 발생했습니다: ${error.message}`);
+        }
       } finally {
         setIsLoading(false);
       }
@@ -524,15 +532,33 @@ export default function App() {
     }
   };
 
-  const hasProductsOnDate = (date: Date) => {
+  const getProductsForDate = (date: Date) => {
     const dateString = formatDate(date);
-    return products.some(p => p.date === dateString);
+    return products.filter(p => p.date === dateString);
   };
 
   return (
     <div className="min-h-screen bg-gray-100 flex justify-center font-sans text-gray-900">
       <div className="w-full max-w-md bg-white h-[100dvh] flex flex-col relative shadow-2xl overflow-hidden">
         
+        {/* Firebase Error Banner */}
+        {firebaseError && (
+          <div className="bg-red-50 border-l-4 border-red-500 p-4 m-4 rounded-md shadow-sm z-50 absolute top-0 left-0 right-0">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <p className="text-sm text-red-700 font-medium">
+                  {firebaseError}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Header */}
         <header className="bg-white px-4 py-3 border-b border-gray-100 flex items-center justify-between z-10">
           <div className="flex items-center gap-2">
@@ -556,76 +582,105 @@ export default function App() {
         </header>
 
         {/* Calendar Section */}
-        <div className="px-4 py-2 bg-slate-50 z-10 border-b border-gray-100">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2">
-              <h2 className="text-base font-semibold">
-                {currentMonth.getFullYear()}년 {currentMonth.getMonth() + 1}월
-              </h2>
-              <button
-                onClick={toggleHoliday}
-                className={`text-[10px] px-2 py-1 rounded border transition-colors ${holidays.includes(selectedDateString) ? 'bg-red-50 text-red-600 border-red-200' : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100'}`}
-              >
-                {holidays.includes(selectedDateString) ? '휴일 해제' : '휴일 지정'}
-              </button>
-            </div>
-            <div className="flex gap-1">
-              <button onClick={handlePrevMonth} className="p-1.5 hover:bg-gray-50 rounded-full transition-colors">
-                <ChevronLeft className="w-4 h-4 text-gray-500" />
-              </button>
-              <button onClick={handleNextMonth} className="p-1.5 hover:bg-gray-50 rounded-full transition-colors">
-                <ChevronRight className="w-4 h-4 text-gray-500" />
-              </button>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-7 gap-1 mb-1">
-            {['일', '월', '화', '수', '목', '금', '토'].map((day, i) => (
-              <div key={day} className={`text-center text-[10px] font-medium py-1 ${i === 0 ? 'text-red-500' : i === 6 ? 'text-blue-500' : 'text-gray-400'}`}>
-                {day}
+        {activeTab === 'calendar' && (
+          <div className="flex-1 flex flex-col bg-slate-50 overflow-hidden pb-[60px]">
+            <div className="px-4 pt-3 pb-2 z-10 flex-shrink-0">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <h2 className="text-base font-semibold">
+                    {currentMonth.getFullYear()}년 {currentMonth.getMonth() + 1}월
+                  </h2>
+                  <button
+                    onClick={() => {
+                      const now = new Date();
+                      setCurrentMonth(new Date(now.getFullYear(), now.getMonth(), 1));
+                      setSelectedDate(now);
+                      setActiveTab('list');
+                    }}
+                    className="text-[10px] px-2 py-1 rounded border transition-colors bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100"
+                  >
+                    오늘
+                  </button>
+                </div>
+                <div className="flex gap-1">
+                  <button onClick={handlePrevMonth} className="p-1.5 hover:bg-gray-200 rounded-full transition-colors">
+                    <ChevronLeft className="w-4 h-4 text-gray-500" />
+                  </button>
+                  <button onClick={handleNextMonth} className="p-1.5 hover:bg-gray-200 rounded-full transition-colors">
+                    <ChevronRight className="w-4 h-4 text-gray-500" />
+                  </button>
+                </div>
               </div>
-            ))}
-          </div>
+            </div>
 
-          <div className="grid grid-cols-7 gap-1">
-            {days.map((date, i) => {
-              if (!date) return <div key={`empty-${i}`} className="h-8" />;
-              
-              const isSelected = formatDate(date) === selectedDateString;
-              const isToday = formatDate(date) === formatDate(today);
-              const hasItems = hasProductsOnDate(date);
-              const isSunday = date.getDay() === 0;
-              const isSaturday = date.getDay() === 6;
-              const isHoliday = holidays.includes(formatDate(date));
+            <div className="flex-1 overflow-y-auto px-4 pb-4">
+              <div className="grid grid-cols-7 gap-px bg-gray-200 border border-gray-200 rounded-lg overflow-hidden">
+                {/* Days Header */}
+                {['일', '월', '화', '수', '목', '금', '토'].map((day, i) => (
+                  <div key={day} className={`text-center text-[10px] font-medium py-1.5 bg-slate-50 ${i === 0 ? 'text-red-500' : i === 6 ? 'text-blue-500' : 'text-gray-500'}`}>
+                    {day}
+                  </div>
+                ))}
+                
+                {/* Calendar Grid */}
+                {days.map((date, i) => {
+                  if (!date) return <div key={`empty-${i}`} className="bg-white min-h-[80px]" />;
+                  
+                  const isToday = formatDate(date) === formatDate(today);
+                  const dateProducts = getProductsForDate(date);
+                  const displayProducts = dateProducts.slice(0, 6);
+                  const moreCount = dateProducts.length - 6;
+                  const isSunday = date.getDay() === 0;
+                  const isSaturday = date.getDay() === 6;
+                  const isHoliday = holidays.includes(formatDate(date));
 
-              return (
-                <button
-                  key={`date-${i}`}
-                  onClick={() => setSelectedDate(date)}
-                  onDragOver={handleDragOver}
-                  onDrop={(e) => handleDrop(e, date)}
-                  className={`
-                    relative h-8 w-full rounded-full flex items-center justify-center text-sm transition-all
-                    ${isSelected ? (isHoliday ? 'bg-red-500 text-white font-semibold shadow-md' : 'bg-blue-600 text-white font-semibold shadow-md') : 'hover:bg-gray-50'}
-                    ${!isSelected && isToday ? 'bg-blue-100 text-blue-700 font-bold' : ''}
-                    ${!isSelected && !isToday && (isSunday || isHoliday) ? 'text-red-500' : ''}
-                    ${!isSelected && !isToday && !isSunday && !isHoliday && isSaturday ? 'text-blue-500' : ''}
-                    ${!isSelected && !isToday && !isSunday && !isHoliday && !isSaturday ? 'text-gray-700' : ''}
-                  `}
-                >
-                  {date.getDate()}
-                  {hasItems && (
-                    <span className={`absolute bottom-0.5 w-1 h-1 rounded-full ${isSelected ? 'bg-white' : (isHoliday ? 'bg-red-500' : 'bg-blue-500')}`} />
-                  )}
-                </button>
-              );
-            })}
+                  return (
+                    <div
+                      key={`date-${i}`}
+                      onClick={() => {
+                        setSelectedDate(date);
+                        setActiveTab('list');
+                      }}
+                      onDragOver={handleDragOver}
+                      onDrop={(e) => handleDrop(e, date)}
+                      className={`
+                        bg-white p-1 min-h-[80px] cursor-pointer hover:bg-gray-50 flex flex-col gap-1 transition-colors
+                        ${isToday ? 'bg-blue-50/30' : ''}
+                      `}
+                    >
+                      <div className={`
+                        text-[10px] font-medium w-5 h-5 flex items-center justify-center rounded-full
+                        ${isToday ? 'bg-blue-600 text-white' : ''}
+                        ${!isToday && (isSunday || isHoliday) ? 'text-red-500' : ''}
+                        ${!isToday && !isSunday && !isHoliday && isSaturday ? 'text-blue-500' : ''}
+                        ${!isToday && !isSunday && !isHoliday && !isSaturday ? 'text-gray-700' : ''}
+                      `}>
+                        {date.getDate()}
+                      </div>
+                      <div className="flex flex-col gap-[2px] overflow-hidden">
+                        {displayProducts.map(p => (
+                          <div key={p.id} className="text-[8px] truncate px-1 rounded-[2px]" style={{ backgroundColor: p.textColor, color: 'white' }}>
+                            {p.name}
+                          </div>
+                        ))}
+                        {moreCount > 0 && (
+                          <div className="text-[8px] text-gray-500 font-medium px-1">
+                            {moreCount}개 더보기
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Product List Section */}
+        {activeTab === 'list' && (
         <div 
-          className="flex-1 bg-gray-50 overflow-y-auto px-4 py-4"
+          className="flex-1 bg-gray-50 overflow-y-auto px-4 py-4 pb-[80px]"
           onTouchStart={handleSwipeStart}
           onTouchEnd={handleSwipeEnd}
           onMouseDown={handleSwipeStart}
@@ -633,9 +688,17 @@ export default function App() {
           onMouseLeave={() => setSwipeStart(null)}
         >
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold text-gray-900">
-              {selectedDate.getMonth() + 1}월 {selectedDate.getDate()}일 출고 목록
-            </h3>
+            <div className="flex items-center gap-2">
+              <h3 className="font-semibold text-gray-900">
+                {selectedDate.getMonth() + 1}월 {selectedDate.getDate()}일 출고 목록
+              </h3>
+              <button
+                onClick={toggleHoliday}
+                className={`text-[10px] px-2 py-1 rounded border transition-colors ${holidays.includes(selectedDateString) ? 'bg-red-50 text-red-600 border-red-200' : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100'}`}
+              >
+                {holidays.includes(selectedDateString) ? '휴일 해제' : '휴일 지정'}
+              </button>
+            </div>
             <div className="flex items-center gap-2">
               {selectedProducts.length > 0 && (
                 <button
@@ -741,6 +804,27 @@ export default function App() {
               </AnimatePresence>
             </div>
           )}
+        </div>
+        )}
+
+        {/* Bottom Navigation */}
+        <div className="absolute bottom-0 left-0 right-0 bg-white border-t border-gray-100 flex items-center justify-around py-2 px-4 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-20">
+          <button
+            onClick={() => setActiveTab('calendar')}
+            className={`flex flex-col items-center gap-1 p-2 rounded-lg transition-colors ${activeTab === 'calendar' ? 'text-blue-600' : 'text-gray-400 hover:text-gray-600'}`}
+          >
+            <CalendarIcon className="w-5 h-5" />
+            <span className="text-[10px] font-medium">캘린더</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('list')}
+            className={`flex flex-col items-center gap-1 p-2 rounded-lg transition-colors ${activeTab === 'list' ? 'text-blue-600' : 'text-gray-400 hover:text-gray-600'}`}
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+            </svg>
+            <span className="text-[10px] font-medium">출고목록</span>
+          </button>
         </div>
 
         {/* Modals */}
