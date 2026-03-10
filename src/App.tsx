@@ -567,7 +567,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-gray-100 flex justify-center font-sans text-gray-900">
-      <div className="w-full md:max-w-[1200px] bg-white h-[100dvh] flex flex-col relative shadow-2xl overflow-hidden">
+      <div className="w-full md:max-w-[1400px] bg-white h-[100dvh] flex flex-col relative shadow-2xl overflow-hidden">
         
         {/* Firebase Error Banner */}
         {firebaseError && (
@@ -672,12 +672,12 @@ export default function App() {
                       onDragOver={handleDragOver}
                       onDrop={(e) => handleDrop(e, date)}
                       className={`
-                        bg-white p-1 md:p-2 min-h-[80px] md:min-h-[120px] cursor-pointer hover:bg-gray-50 flex flex-col gap-1 transition-colors
+                        bg-white p-1 md:p-1.5 min-h-[80px] md:min-h-[100px] cursor-pointer hover:bg-gray-50 flex flex-col gap-1 transition-colors
                         ${isToday ? 'bg-blue-50/30' : ''}
                       `}
                     >
                       <div className={`
-                        text-[10px] md:text-sm font-medium w-5 h-5 md:w-7 md:h-7 flex items-center justify-center rounded-full
+                        text-[10px] md:text-xs font-medium w-5 h-5 md:w-6 md:h-6 flex items-center justify-center rounded-full
                         ${isToday ? 'bg-blue-600 text-white' : ''}
                         ${!isToday && (isSunday || isHoliday) ? 'text-red-500' : ''}
                         ${!isToday && !isSunday && !isHoliday && isSaturday ? 'text-blue-500' : ''}
@@ -689,7 +689,7 @@ export default function App() {
                         {displayProducts.map(p => (
                           <div 
                             key={p.id} 
-                            className="text-[8px] md:text-xs truncate px-1 md:px-1.5 py-[1px] md:py-0.5 rounded-[2px] md:rounded cursor-grab active:cursor-grabbing" 
+                            className="text-[8px] md:text-[10px] truncate px-1 md:px-1.5 py-[1px] md:py-0.5 rounded-[2px] md:rounded cursor-grab active:cursor-grabbing" 
                             style={{ backgroundColor: p.textColor, color: 'white' }}
                             draggable
                             onDragStart={(e) => {
@@ -701,7 +701,7 @@ export default function App() {
                           </div>
                         ))}
                         {moreCount > 0 && (
-                          <div className="text-[8px] md:text-xs text-gray-500 font-medium px-1 md:px-1.5 mt-0.5 md:mt-1">
+                          <div className="text-[8px] md:text-[10px] text-gray-500 font-medium px-1 md:px-1.5 mt-0.5 md:mt-1">
                             {moreCount}개 더보기
                           </div>
                         )}
