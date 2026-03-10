@@ -567,7 +567,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-gray-100 flex justify-center font-sans text-gray-900">
-      <div className="w-full md:max-w-[1400px] bg-white h-[100dvh] flex flex-col relative shadow-2xl overflow-hidden">
+      <div className="w-full md:max-w-[1200px] bg-white h-[100dvh] flex flex-col relative shadow-2xl overflow-hidden">
         
         {/* Firebase Error Banner */}
         {firebaseError && (
