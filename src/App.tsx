@@ -64,6 +64,8 @@ export default function App() {
   const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
   const [activeTab, setActiveTab] = useState<'calendar' | 'list'>('calendar');
 
+  const [viewImageProduct, setViewImageProduct] = useState<Product | null>(null);
+
   const handleTabChange = (tab: 'calendar' | 'list') => {
     if (tab === activeTab) return;
     if (tab === 'list') {
@@ -80,6 +82,11 @@ export default function App() {
 
   useEffect(() => {
     const handlePopState = (e: PopStateEvent) => {
+      if (viewImageProduct) {
+        setViewImageProduct(null);
+        return;
+      }
+      
       if (e.state?.tab === 'list') {
         setActiveTab('list');
       } else {
@@ -88,7 +95,7 @@ export default function App() {
     };
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, []);
+  }, [viewImageProduct]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -120,7 +127,6 @@ export default function App() {
     fetchData();
   }, []);
 
-  const [viewImageProduct, setViewImageProduct] = useState<Product | null>(null);
   const [colorPickerProduct, setColorPickerProduct] = useState<Product | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -796,7 +802,10 @@ export default function App() {
                   >
                     <button 
                       className="flex-1 flex items-center gap-2 text-left"
-                      onClick={() => setViewImageProduct(product)}
+                      onClick={() => {
+                        setViewImageProduct(product);
+                        window.history.pushState({ modal: 'image' }, '');
+                      }}
                     >
                       <span className="font-medium text-sm truncate" style={{ color: product.textColor }}>
                         {product.name}
@@ -1012,7 +1021,12 @@ export default function App() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-6"
-              onClick={() => setViewImageProduct(null)}
+              onClick={() => {
+                setViewImageProduct(null);
+                if (window.history.state?.modal === 'image') {
+                  window.history.back();
+                }
+              }}
             >
               <motion.div 
                 initial={{ scale: 0.9, opacity: 0 }}
@@ -1029,7 +1043,12 @@ export default function App() {
                     referrerPolicy="no-referrer"
                   />
                   <button 
-                    onClick={() => setViewImageProduct(null)}
+                    onClick={() => {
+                      setViewImageProduct(null);
+                      if (window.history.state?.modal === 'image') {
+                        window.history.back();
+                      }
+                    }}
                     className="absolute top-4 right-4 w-8 h-8 bg-black/50 backdrop-blur-md rounded-full flex items-center justify-center text-white hover:bg-black/70 transition-colors"
                   >
                     <X className="w-4 h-4" />
