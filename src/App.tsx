@@ -319,13 +319,26 @@ export default function App() {
     const daysInMonth = getDaysInMonth(year, month);
     const firstDay = getFirstDayOfMonth(year, month);
     
-    const daysArray: (Date | null)[] = [];
-    for (let i = 0; i < firstDay; i++) {
-      daysArray.push(null);
+    const daysArray: Date[] = [];
+    
+    // Previous month's days
+    const prevMonthDays = getDaysInMonth(year, month - 1);
+    for (let i = firstDay - 1; i >= 0; i--) {
+      daysArray.push(new Date(year, month - 1, prevMonthDays - i));
     }
+    
+    // Current month's days
     for (let i = 1; i <= daysInMonth; i++) {
       daysArray.push(new Date(year, month, i));
     }
+    
+    // Next month's days
+    const totalDays = daysArray.length;
+    const remainingDays = totalDays % 7 === 0 ? 0 : 7 - (totalDays % 7);
+    for (let i = 1; i <= remainingDays; i++) {
+      daysArray.push(new Date(year, month + 1, i));
+    }
+    
     return daysArray;
   }, [currentMonth]);
 
@@ -652,9 +665,8 @@ export default function App() {
                 
                 {/* Calendar Grid */}
                 {days.map((date, i) => {
-                  if (!date) return <div key={`empty-${i}`} className="bg-white min-h-[80px] md:min-h-[120px]" />;
-                  
                   const isToday = formatDate(date) === formatDate(today);
+                  const isCurrentMonth = date.getMonth() === currentMonth.getMonth();
                   const dateProducts = getProductsForDate(date);
                   const displayProducts = dateProducts.slice(0, 6);
                   const moreCount = dateProducts.length - 6;
@@ -672,12 +684,14 @@ export default function App() {
                       onDragOver={handleDragOver}
                       onDrop={(e) => handleDrop(e, date)}
                       className={`
-                        bg-white p-1 md:p-1.5 min-h-[80px] md:min-h-[100px] cursor-pointer hover:bg-gray-50 flex flex-col gap-1 transition-colors
+                        p-1 md:p-1.5 min-h-[80px] md:min-h-[100px] cursor-pointer hover:bg-gray-50 flex flex-col gap-1 transition-colors
+                        ${isCurrentMonth ? 'bg-white' : 'bg-gray-50/50'}
                         ${isToday ? 'bg-blue-50/30' : ''}
                       `}
                     >
                       <div className={`
                         text-[10px] md:text-xs font-medium w-5 h-5 md:w-6 md:h-6 flex items-center justify-center rounded-full
+                        ${!isCurrentMonth ? 'opacity-40' : ''}
                         ${isToday ? 'bg-blue-600 text-white' : ''}
                         ${!isToday && (isSunday || isHoliday) ? 'text-red-500' : ''}
                         ${!isToday && !isSunday && !isHoliday && isSaturday ? 'text-blue-500' : ''}
