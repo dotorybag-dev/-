@@ -64,6 +64,32 @@ export default function App() {
   const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
   const [activeTab, setActiveTab] = useState<'calendar' | 'list'>('calendar');
 
+  const handleTabChange = (tab: 'calendar' | 'list') => {
+    if (tab === activeTab) return;
+    if (tab === 'list') {
+      window.history.pushState({ tab: 'list' }, '');
+      setActiveTab('list');
+    } else {
+      if (window.history.state?.tab === 'list') {
+        window.history.back();
+      } else {
+        setActiveTab('calendar');
+      }
+    }
+  };
+
+  useEffect(() => {
+    const handlePopState = (e: PopStateEvent) => {
+      if (e.state?.tab === 'list') {
+        setActiveTab('list');
+      } else {
+        setActiveTab('calendar');
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
   useEffect(() => {
     const fetchData = async () => {
       if (!db) {
@@ -595,7 +621,7 @@ export default function App() {
                       const now = new Date();
                       setCurrentMonth(new Date(now.getFullYear(), now.getMonth(), 1));
                       setSelectedDate(now);
-                      setActiveTab('list');
+                      handleTabChange('list');
                     }}
                     className="text-[10px] px-2 py-1 rounded border transition-colors bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100"
                   >
@@ -639,7 +665,7 @@ export default function App() {
                       key={`date-${i}`}
                       onClick={() => {
                         setSelectedDate(date);
-                        setActiveTab('list');
+                        handleTabChange('list');
                       }}
                       onDragOver={handleDragOver}
                       onDrop={(e) => handleDrop(e, date)}
@@ -659,7 +685,16 @@ export default function App() {
                       </div>
                       <div className="flex flex-col gap-[2px] overflow-hidden">
                         {displayProducts.map(p => (
-                          <div key={p.id} className="text-[8px] truncate px-1 rounded-[2px]" style={{ backgroundColor: p.textColor, color: 'white' }}>
+                          <div 
+                            key={p.id} 
+                            className="text-[8px] truncate px-1 rounded-[2px] cursor-grab active:cursor-grabbing" 
+                            style={{ backgroundColor: p.textColor, color: 'white' }}
+                            draggable
+                            onDragStart={(e) => {
+                              e.stopPropagation();
+                              handleDragStart(e, p.id);
+                            }}
+                          >
                             {p.name}
                           </div>
                         ))}
@@ -757,9 +792,7 @@ export default function App() {
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.95 }}
-                    draggable
-                    onDragStart={(e) => handleDragStart(e, product.id)}
-                    className="bg-white px-3 py-2 rounded-lg shadow-sm border border-gray-100 flex items-center justify-between group cursor-grab active:cursor-grabbing"
+                    className="bg-white px-3 py-2 rounded-lg shadow-sm border border-gray-100 flex items-center justify-between group"
                   >
                     <button 
                       className="flex-1 flex items-center gap-2 text-left"
@@ -810,14 +843,14 @@ export default function App() {
         {/* Bottom Navigation */}
         <div className="absolute bottom-0 left-0 right-0 bg-white border-t border-gray-100 flex items-center justify-around py-2 px-4 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-20">
           <button
-            onClick={() => setActiveTab('calendar')}
+            onClick={() => handleTabChange('calendar')}
             className={`flex flex-col items-center gap-1 p-2 rounded-lg transition-colors ${activeTab === 'calendar' ? 'text-blue-600' : 'text-gray-400 hover:text-gray-600'}`}
           >
             <CalendarIcon className="w-5 h-5" />
             <span className="text-[10px] font-medium">캘린더</span>
           </button>
           <button
-            onClick={() => setActiveTab('list')}
+            onClick={() => handleTabChange('list')}
             className={`flex flex-col items-center gap-1 p-2 rounded-lg transition-colors ${activeTab === 'list' ? 'text-blue-600' : 'text-gray-400 hover:text-gray-600'}`}
           >
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
