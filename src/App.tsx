@@ -72,11 +72,7 @@ export default function App() {
       window.history.pushState({ tab: 'list' }, '');
       setActiveTab('list');
     } else {
-      if (window.history.state?.tab === 'list') {
-        window.history.back();
-      } else {
-        setActiveTab('calendar');
-      }
+      setActiveTab('calendar');
     }
   };
 
@@ -571,7 +567,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-gray-100 flex justify-center font-sans text-gray-900">
-      <div className="w-full max-w-md bg-white h-[100dvh] flex flex-col relative shadow-2xl overflow-hidden">
+      <div className="w-full md:max-w-6xl bg-white h-[100dvh] flex flex-col relative shadow-2xl overflow-hidden">
         
         {/* Firebase Error Banner */}
         {firebaseError && (
@@ -613,9 +609,9 @@ export default function App() {
           </button>
         </header>
 
-        {/* Calendar Section */}
-        {activeTab === 'calendar' && (
-          <div className="flex-1 flex flex-col bg-slate-50 overflow-hidden pb-[60px]">
+        <div className="flex-1 flex flex-col md:flex-row overflow-hidden relative">
+          {/* Calendar Section */}
+          <div className={`flex-1 flex-col bg-slate-50 overflow-hidden pb-[60px] md:pb-0 md:border-r md:border-gray-200 ${activeTab === 'calendar' ? 'flex' : 'hidden md:flex'}`}>
             <div className="px-4 pt-3 pb-2 z-10 flex-shrink-0">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -716,13 +712,11 @@ export default function App() {
               </div>
             </div>
           </div>
-        )}
 
-        {/* Product List Section */}
-        {activeTab === 'list' && (
-        <div 
-          className="flex-1 bg-gray-50 overflow-y-auto px-4 py-4 pb-[80px]"
-          onTouchStart={handleSwipeStart}
+          {/* Product List Section */}
+          <div 
+            className={`flex-1 md:w-96 md:flex-none bg-gray-50 overflow-y-auto px-4 py-4 pb-[80px] md:pb-4 flex-col ${activeTab === 'list' ? 'flex' : 'hidden md:flex'}`}
+            onTouchStart={handleSwipeStart}
           onTouchEnd={handleSwipeEnd}
           onMouseDown={handleSwipeStart}
           onMouseUp={handleSwipeEnd}
@@ -847,10 +841,10 @@ export default function App() {
             </div>
           )}
         </div>
-        )}
+        </div>
 
         {/* Bottom Navigation */}
-        <div className="absolute bottom-0 left-0 right-0 bg-white border-t border-gray-100 flex items-center justify-around py-2 px-4 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-20">
+        <div className="md:hidden absolute bottom-0 left-0 right-0 bg-white border-t border-gray-100 flex items-center justify-around py-2 px-4 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-20">
           <button
             onClick={() => handleTabChange('calendar')}
             className={`flex flex-col items-center gap-1 p-2 rounded-lg transition-colors ${activeTab === 'calendar' ? 'text-blue-600' : 'text-gray-400 hover:text-gray-600'}`}
