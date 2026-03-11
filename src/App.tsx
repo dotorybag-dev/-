@@ -389,7 +389,7 @@ export default function App() {
     if (!newName.trim()) return;
     
     setIsUploading(true);
-    let finalImageUrl = newImage || `https://picsum.photos/seed/${Date.now()}/400/400`;
+    let finalImageUrl = newImage || '';
 
     if (newImage && newImage.startsWith('data:image')) {
       if (storage) {
@@ -1056,25 +1056,41 @@ export default function App() {
                 className="bg-white rounded-3xl overflow-hidden w-full max-w-sm shadow-2xl"
                 onClick={e => e.stopPropagation()}
               >
-                <div className="relative aspect-square w-full bg-gray-100">
-                  <img 
-                    src={viewImageProduct.imageUrl} 
-                    alt={viewImageProduct.name} 
-                    className="w-full h-full object-cover"
-                    referrerPolicy="no-referrer"
-                  />
-                  <button 
-                    onClick={() => {
-                      setViewImageProduct(null);
-                      if (window.history.state?.modal === 'image') {
-                        window.history.back();
-                      }
-                    }}
-                    className="absolute top-4 right-4 w-8 h-8 bg-black/50 backdrop-blur-md rounded-full flex items-center justify-center text-white hover:bg-black/70 transition-colors"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
+                {viewImageProduct.imageUrl ? (
+                  <div className="relative aspect-square w-full bg-gray-50 flex items-center justify-center">
+                    <img 
+                      src={viewImageProduct.imageUrl} 
+                      alt={viewImageProduct.name} 
+                      className="w-full h-full object-cover"
+                      referrerPolicy="no-referrer"
+                    />
+                    <button 
+                      onClick={() => {
+                        setViewImageProduct(null);
+                        if (window.history.state?.modal === 'image') {
+                          window.history.back();
+                        }
+                      }}
+                      className="absolute top-4 right-4 w-8 h-8 bg-black/50 backdrop-blur-md rounded-full flex items-center justify-center text-white hover:bg-black/70 transition-colors"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex justify-end p-4 pb-0">
+                    <button 
+                      onClick={() => {
+                        setViewImageProduct(null);
+                        if (window.history.state?.modal === 'image') {
+                          window.history.back();
+                        }
+                      }}
+                      className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center text-gray-500 hover:bg-gray-200 transition-colors"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
                 <div className="p-5">
                   <div className="flex items-center justify-between mb-1">
                     <h3 className="font-bold text-lg" style={{ color: viewImageProduct.textColor }}>
