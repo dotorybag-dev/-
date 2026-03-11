@@ -24,6 +24,14 @@ const COLORS = [
   '#ec4899', // Pink 500
 ];
 
+const COLOR_LABELS: Record<string, string> = {
+  '#ef4444': '긴급',
+  '#22c55e': '접지중',
+  '#3b82f6': '오늘출고',
+  '#eab308': '잔량',
+  '#a855f7': '누리',
+};
+
 const formatDate = (date: Date) => {
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, '0');
@@ -806,7 +814,12 @@ export default function App() {
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.95 }}
-                    className="bg-white px-3 py-2 rounded-lg shadow-sm border border-gray-100 flex items-center justify-between group"
+                    className="bg-white px-3 py-2 rounded-lg shadow-sm border border-gray-100 flex items-center justify-between group cursor-grab active:cursor-grabbing"
+                    draggable
+                    onDragStart={(e: any) => {
+                      // e.stopPropagation();
+                      handleDragStart(e, product.id);
+                    }}
                   >
                     <button 
                       className="flex-1 flex items-center gap-2 text-left"
@@ -1118,11 +1131,16 @@ export default function App() {
                     <button
                       key={color}
                       onClick={() => handleChangeColor(color)}
-                      className="aspect-square rounded-2xl flex items-center justify-center transition-transform hover:scale-105 active:scale-95"
+                      className="relative aspect-square rounded-2xl flex items-center justify-center transition-transform hover:scale-105 active:scale-95"
                       style={{ backgroundColor: color }}
                     >
+                      {COLOR_LABELS[color] && (
+                        <span className="text-white text-sm font-bold z-10 drop-shadow-md">
+                          {COLOR_LABELS[color]}
+                        </span>
+                      )}
                       {colorPickerProduct.textColor === color && (
-                        <div className="w-3 h-3 bg-white rounded-full shadow-sm" />
+                        <div className="absolute inset-0 border-4 border-white/50 rounded-2xl" />
                       )}
                     </button>
                   ))}
@@ -1269,10 +1287,15 @@ export default function App() {
                         <button
                           key={color}
                           onClick={() => setNewColor(color)}
-                          className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center transition-all snap-center ${newColor === color ? 'ring-2 ring-offset-2 ring-blue-500 scale-110' : ''}`}
+                          className={`relative flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center transition-all snap-center ${newColor === color ? 'ring-2 ring-offset-2 ring-blue-500 scale-110' : ''}`}
                           style={{ backgroundColor: color }}
                         >
-                          {newColor === color && (
+                          {COLOR_LABELS[color] && (
+                            <span className="text-white text-[10px] font-bold z-10 drop-shadow-md">
+                              {COLOR_LABELS[color]}
+                            </span>
+                          )}
+                          {newColor === color && !COLOR_LABELS[color] && (
                             <div className="w-2.5 h-2.5 bg-white rounded-full shadow-sm" />
                           )}
                         </button>
