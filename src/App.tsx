@@ -27,7 +27,7 @@ const COLORS = [
 const COLOR_LABELS: Record<string, string> = {
   '#ef4444': '긴급',
   '#22c55e': '접지중',
-  '#3b82f6': '오늘출고',
+  '#3b82f6': '출고가능',
   '#eab308': '잔량',
   '#a855f7': '누리',
 };
