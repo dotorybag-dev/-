@@ -1231,12 +1231,17 @@ export default function App() {
                     minScale={0.5}
                     maxScale={5}
                     centerOnInit={true}
+                    centerZoomedOut={true}
                   >
-                    <TransformComponent wrapperStyle={{ width: "100%", height: "100%" }} contentStyle={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <TransformComponent 
+                      wrapperStyle={{ width: "100%", height: "100%" }} 
+                      contentStyle={{ width: "max-content", height: "max-content" }}
+                    >
                       <img 
                         src={orderImageUrl} 
                         alt="도토리 발주서" 
-                        className="max-w-full max-h-full object-contain shadow-md rounded-lg"
+                        className="shadow-md rounded-lg"
+                        style={{ maxWidth: "calc(100vw - 32px)", maxHeight: "calc(100dvh - 90px)", objectFit: "contain" }}
                         referrerPolicy="no-referrer"
                       />
                     </TransformComponent>
