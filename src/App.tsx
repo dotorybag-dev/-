@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Plus, Image as ImageIcon, Palette, Trash2, X, Calendar as CalendarIcon, Monitor, CheckSquare, Square } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
 import { storage, db } from './firebase';
 import { ref, uploadString, getDownloadURL, deleteObject } from 'firebase/storage';
 import { collection, getDocs, setDoc, deleteDoc, doc, getDoc } from 'firebase/firestore';
@@ -73,6 +74,9 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<'calendar' | 'list'>('calendar');
 
   const [viewImageProduct, setViewImageProduct] = useState<Product | null>(null);
+  const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
+  const [orderImageUrl, setOrderImageUrl] = useState<string | null>(null);
+  const [isUploadingOrder, setIsUploadingOrder] = useState(false);
 
   const handleTabChange = (tab: 'calendar' | 'list') => {
     if (tab === activeTab) return;
@@ -90,6 +94,10 @@ export default function App() {
         setViewImageProduct(null);
         return;
       }
+      if (isOrderModalOpen) {
+        setIsOrderModalOpen(false);
+        return;
+      }
       
       if (e.state?.tab === 'list') {
         setActiveTab('list');
@@ -99,7 +107,7 @@ export default function App() {
     };
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, [viewImageProduct]);
+  }, [viewImageProduct, isOrderModalOpen]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -116,6 +124,11 @@ export default function App() {
         const holidaysDoc = await getDoc(doc(db, 'settings', 'holidays'));
         if (holidaysDoc.exists()) {
           setHolidays(holidaysDoc.data().dates || []);
+        }
+
+        const orderDoc = await getDoc(doc(db, 'settings', 'purchaseOrder'));
+        if (orderDoc.exists()) {
+          setOrderImageUrl(orderDoc.data().imageUrl || null);
         }
       } catch (error: any) {
         console.error('Failed to fetch data:', error);
@@ -468,6 +481,49 @@ export default function App() {
     }
   };
 
+  const handleOrderImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      alert('이미지 크기는 5MB 이하여야 합니다.');
+      return;
+    }
+
+    setIsUploadingOrder(true);
+    
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      try {
+        const base64String = reader.result as string;
+        
+        if (storage) {
+          const imageRef = ref(storage, `orders/${Date.now()}_${Math.random().toString(36).substring(7)}.jpg`);
+          await uploadString(imageRef, base64String, 'data_url');
+          const finalImageUrl = await getDownloadURL(imageRef);
+          
+          setOrderImageUrl(finalImageUrl);
+          
+          if (db) {
+            await setDoc(doc(db, 'settings', 'purchaseOrder'), { imageUrl: finalImageUrl });
+          }
+        } else {
+          alert("Firebase Storage가 설정되지 않았습니다.");
+        }
+      } catch (error) {
+        console.error("Order image upload failed:", error);
+        alert("발주서 이미지 업로드에 실패했습니다.");
+      } finally {
+        setIsUploadingOrder(false);
+      }
+    };
+    reader.onerror = () => {
+      alert("파일을 읽는 중 오류가 발생했습니다.");
+      setIsUploadingOrder(false);
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleDeleteProduct = async (id: string) => {
     setProductToDelete(id);
   };
@@ -615,6 +671,15 @@ export default function App() {
               <CalendarIcon className="w-4 h-4 text-white" />
             </div>
             <h1 className="text-lg font-bold tracking-tight text-gray-900">도토리 출고 일정</h1>
+            <button
+              onClick={() => {
+                setIsOrderModalOpen(true);
+                window.history.pushState({ modal: 'order' }, '');
+              }}
+              className="ml-2 px-3 py-1 text-xs font-semibold bg-blue-50 text-blue-600 rounded-md hover:bg-blue-100 transition-colors"
+            >
+              발주서 보기
+            </button>
           </div>
           <button 
             onClick={() => {
@@ -1116,6 +1181,74 @@ export default function App() {
                   </p>
                 </div>
               </motion.div>
+            </motion.div>
+          )}
+
+          {/* Purchase Order Modal */}
+          {isOrderModalOpen && (
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 z-50 flex flex-col bg-white"
+            >
+              <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-white shadow-sm">
+                <h2 className="text-lg font-bold text-gray-900 border border-gray-300 px-3 py-1 rounded-md">
+                  도토리 발주서
+                </h2>
+                <div className="flex items-center gap-2">
+                  <label className="w-8 h-8 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center cursor-pointer hover:bg-blue-100 transition-colors">
+                    {isUploadingOrder ? (
+                      <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <Plus className="w-5 h-5" />
+                    )}
+                    <input 
+                      type="file" 
+                      accept="image/*" 
+                      onChange={handleOrderImageUpload} 
+                      className="hidden" 
+                      disabled={isUploadingOrder}
+                    />
+                  </label>
+                  <button 
+                    onClick={() => {
+                      setIsOrderModalOpen(false);
+                      if (window.history.state?.modal === 'order') {
+                        window.history.back();
+                      }
+                    }}
+                    className="w-8 h-8 bg-gray-100 text-gray-600 rounded-full flex items-center justify-center hover:bg-gray-200 transition-colors"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+              <div className="flex-1 overflow-hidden bg-gray-100 flex items-center justify-center p-4 relative">
+                {orderImageUrl ? (
+                  <TransformWrapper
+                    initialScale={1}
+                    minScale={0.5}
+                    maxScale={5}
+                    centerOnInit={true}
+                  >
+                    <TransformComponent wrapperStyle={{ width: "100%", height: "100%" }} contentStyle={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <img 
+                        src={orderImageUrl} 
+                        alt="도토리 발주서" 
+                        className="max-w-full max-h-full object-contain shadow-md rounded-lg"
+                        referrerPolicy="no-referrer"
+                      />
+                    </TransformComponent>
+                  </TransformWrapper>
+                ) : (
+                  <div className="flex flex-col items-center justify-center text-gray-400">
+                    <ImageIcon className="w-16 h-16 mb-4 opacity-20" />
+                    <p className="text-sm font-medium">등록된 발주서가 없습니다.</p>
+                    <p className="text-xs mt-1">우측 상단의 '+' 버튼을 눌러 이미지를 등록해주세요.</p>
+                  </div>
+                )}
+              </div>
             </motion.div>
           )}
 
