@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Plus, Image as ImageIcon, Palette, Trash2, X, Calendar as CalendarIcon, Monitor, CheckSquare, Square } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Image as ImageIcon, Palette, Trash2, X, Calendar as CalendarIcon, Monitor, CheckSquare, Square, RefreshCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
 import { storage, db } from './firebase';
@@ -676,9 +676,16 @@ export default function App() {
                 setIsOrderModalOpen(true);
                 window.history.pushState({ modal: 'order' }, '');
               }}
-              className="ml-2 px-3 py-1 text-xs font-semibold bg-blue-50 text-blue-600 rounded-md hover:bg-blue-100 transition-colors"
+              className="ml-2 px-3 py-1 text-xs font-semibold bg-blue-50 text-blue-600 rounded-md hover:bg-blue-100 transition-colors shrink-0"
             >
               발주서 보기
+            </button>
+            <button
+              onClick={() => window.location.reload()}
+              className="ml-1 p-1.5 text-gray-500 bg-gray-50 rounded-md hover:bg-gray-100 transition-colors shrink-0"
+              title="새로고침"
+            >
+              <RefreshCw className="w-4 h-4" />
             </button>
           </div>
           <button 
