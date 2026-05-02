@@ -22,15 +22,16 @@ const COLORS = [
   '#22c55e', // Green 500
   '#3b82f6', // Blue 500
   '#a855f7', // Purple 500
-  '#ec4899', // Pink 500
+  '#00fff8', // mint
 ];
 
 const COLOR_LABELS: Record<string, string> = {
-  '#ef4444': '긴급',
+  '#ef4444': '중요',
   '#22c55e': '접지중',
   '#3b82f6': '출고가능',
   '#eab308': '잔량',
   '#a855f7': '누리',
+  '#00fff8': '지정출고' 
 };
 
 const formatDate = (date: Date) => {
