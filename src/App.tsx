@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Plus, Image as ImageIcon, Palette, Trash2, X, Calendar as CalendarIcon, Monitor, CheckSquare, Square } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Image as ImageIcon, Palette, Trash2, X, Calendar as CalendarIcon, Monitor, CheckSquare, Square, Bell } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
 import { storage, db } from './firebase';
@@ -12,6 +12,13 @@ type Product = {
   name: string;
   imageUrl: string;
   textColor: string;
+};
+
+type Notice = {
+  id: string;
+  text: string;
+  isCompleted: boolean;
+  createdAt: number;
 };
 
 const COLORS = [
@@ -72,18 +79,26 @@ export default function App() {
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [productToDelete, setProductToDelete] = useState<string | null>(null);
   const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
-  const [activeTab, setActiveTab] = useState<'calendar' | 'list'>('calendar');
+  const [activeTab, setActiveTab] = useState<'calendar' | 'list' | 'notice'>('calendar');
 
   const [viewImageProduct, setViewImageProduct] = useState<Product | null>(null);
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
   const [orderImageUrl, setOrderImageUrl] = useState<string | null>(null);
   const [isUploadingOrder, setIsUploadingOrder] = useState(false);
+  
+  // Notice State
+  const [notices, setNotices] = useState<Notice[]>([]);
+  const [isNoticeModalOpen, setIsNoticeModalOpen] = useState(false);
+  const [noticeText, setNoticeText] = useState('');
+  const [editingNotice, setEditingNotice] = useState<Notice | null>(null);
+  const [noticeToComplete, setNoticeToComplete] = useState<string | null>(null);
+  const [noticeToDelete, setNoticeToDelete] = useState<string | null>(null);
 
-  const handleTabChange = (tab: 'calendar' | 'list') => {
+  const handleTabChange = (tab: 'calendar' | 'list' | 'notice') => {
     if (tab === activeTab) return;
-    if (tab === 'list') {
-      window.history.pushState({ tab: 'list' }, '');
-      setActiveTab('list');
+    if (tab === 'list' || tab === 'notice') {
+      window.history.pushState({ tab }, '');
+      setActiveTab(tab);
     } else {
       setActiveTab('calendar');
     }
@@ -102,6 +117,8 @@ export default function App() {
       
       if (e.state?.tab === 'list') {
         setActiveTab('list');
+      } else if (e.state?.tab === 'notice') {
+        setActiveTab('notice');
       } else {
         setActiveTab('calendar');
       }
@@ -121,6 +138,10 @@ export default function App() {
         const productsSnapshot = await getDocs(collection(db, 'products'));
         const productsData = productsSnapshot.docs.map(d => d.data() as Product);
         setProducts(productsData);
+
+        const noticesSnapshot = await getDocs(collection(db, 'notices'));
+        const noticesData = noticesSnapshot.docs.map(d => d.data() as Notice).sort((a,b) => b.createdAt - a.createdAt);
+        setNotices(noticesData);
 
         const holidaysDoc = await getDoc(doc(db, 'settings', 'holidays'));
         if (holidaysDoc.exists()) {
@@ -638,6 +659,90 @@ export default function App() {
     }
   };
 
+  const handleSaveNotice = async () => {
+    if (!noticeText.trim()) return;
+    
+    if (editingNotice) {
+      const id = editingNotice.id;
+      setNotices(notices.map(n => n.id === id ? { ...n, text: noticeText.trim() } : n));
+      setIsNoticeModalOpen(false);
+      setEditingNotice(null);
+      setNoticeText('');
+      try {
+        if (db) {
+          await setDoc(doc(db, 'notices', id), { text: noticeText.trim() }, { merge: true });
+        }
+      } catch (error) {
+        console.error('Failed to update notice:', error);
+      }
+    } else {
+      const newNotice: Notice = {
+        id: generateId(),
+        text: noticeText.trim(),
+        isCompleted: false,
+        createdAt: Date.now(),
+      };
+      
+      setNotices([newNotice, ...notices]);
+      setNoticeText('');
+      setIsNoticeModalOpen(false);
+      
+      try {
+        if (db) {
+          await setDoc(doc(db, 'notices', newNotice.id), newNotice);
+        }
+      } catch (error) {
+        console.error('Failed to save notice:', error);
+      }
+    }
+  };
+
+  const handleUncompleteNotice = async () => {
+    if (!editingNotice) return;
+    const id = editingNotice.id;
+    setNotices(notices.map(n => n.id === id ? { ...n, isCompleted: false } : n));
+    setIsNoticeModalOpen(false);
+    setEditingNotice(null);
+    setNoticeText('');
+    try {
+      if (db) {
+        await setDoc(doc(db, 'notices', id), { isCompleted: false }, { merge: true });
+      }
+    } catch (error) {
+      console.error('Failed to uncomplete notice:', error);
+    }
+  };
+
+  const confirmCompleteNotice = async () => {
+    if (!noticeToComplete) return;
+    const id = noticeToComplete;
+    setNotices(notices.map(n => n.id === id ? { ...n, isCompleted: true } : n));
+    setNoticeToComplete(null);
+    
+    try {
+      if (db) {
+        await setDoc(doc(db, 'notices', id), { isCompleted: true }, { merge: true });
+      }
+    } catch (error) {
+      console.error('Failed to complete notice:', error);
+    }
+  };
+
+  const confirmDeleteNotice = async () => {
+    if (!noticeToDelete) return;
+    const id = noticeToDelete;
+    setNotices(notices.filter(n => n.id !== id));
+    setNoticeToDelete(null);
+    
+    try {
+      if (db) {
+        await deleteDoc(doc(db, 'notices', id));
+      }
+    } catch (error) {
+      console.error('Failed to delete notice:', error);
+    }
+  };
+
   const getProductsForDate = (date: Date) => {
     const dateString = formatDate(date);
     return products.filter(p => p.date === dateString);
@@ -701,8 +806,8 @@ export default function App() {
           <div className={`flex-1 flex-col bg-slate-50 overflow-hidden pb-[60px] md:pb-0 md:border-r md:border-gray-200 ${activeTab === 'calendar' ? 'flex' : 'hidden md:flex'}`}>
             <div className="px-4 pt-3 pb-2 z-10 flex-shrink-0">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <h2 className="text-base font-semibold">
+                <div className="flex items-center gap-2 flex-1 overflow-hidden mr-2">
+                  <h2 className="text-base font-semibold whitespace-nowrap">
                     {currentMonth.getFullYear()}년 {currentMonth.getMonth() + 1}월
                   </h2>
                   <button
@@ -712,10 +817,19 @@ export default function App() {
                       setSelectedDate(now);
                       handleTabChange('list');
                     }}
-                    className="text-[10px] px-2 py-1 rounded border transition-colors bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100"
+                    className="flex-shrink-0 text-[10px] px-2 py-1 rounded border transition-colors bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100 whitespace-nowrap z-10"
                   >
                     오늘
                   </button>
+                  {/* Notice Marquee */}
+                  <div 
+                    className="overflow-hidden flex-1 min-w-[80px] mx-2 cursor-pointer relative flex items-center h-6 bg-red-50 border border-red-100 rounded-md"
+                    onClick={() => handleTabChange('notice')}
+                  >
+                    <div className="animate-marquee whitespace-nowrap text-[11px] text-red-500 font-medium px-2 flex items-center">
+                      {notices.filter(n => !n.isCompleted).map(n => n.text).join(' ◾ ') || "등록된 공지사항이 없습니다."}
+                    </div>
+                  </div>
                 </div>
                 <div className="flex gap-1">
                   <button onClick={handlePrevMonth} className="p-1.5 hover:bg-gray-200 rounded-full transition-colors">
@@ -934,10 +1048,67 @@ export default function App() {
             </div>
           )}
         </div>
+
+          {/* Notice Section (Mobile + Desktop overlay) */}
+          <div 
+            className={`absolute inset-0 z-30 md:z-[55] flex flex-col items-center md:bg-black/40 md:backdrop-blur-sm ${activeTab === 'notice' ? 'flex' : 'hidden'}`}
+            onClick={(e) => {
+              if (window.innerWidth >= 768 && e.target === e.currentTarget) {
+                setActiveTab('calendar');
+              }
+            }}
+          >
+            <div className="w-full h-full md:w-[600px] md:h-[80vh] md:mt-auto md:mb-auto bg-gray-50 md:rounded-2xl shadow-2xl flex flex-col" onClick={e => e.stopPropagation()}>
+               <div className="bg-white px-4 py-3 md:rounded-t-2xl border-b border-gray-100 flex items-center justify-between">
+                 <h2 className="text-lg font-bold">공지사항</h2>
+                 <div className="flex gap-2">
+                   <button onClick={() => {
+                     setEditingNotice(null);
+                     setNoticeText('');
+                     setIsNoticeModalOpen(true);
+                   }} className="w-8 h-8 bg-gray-50 hover:bg-gray-100 rounded-full flex items-center justify-center transition-colors">
+                     <Plus className="w-4 h-4 text-gray-600" />
+                   </button>
+                   <button onClick={() => setActiveTab('calendar')} className="hidden md:flex w-8 h-8 bg-gray-50 hover:bg-gray-100 rounded-full flex items-center justify-center transition-colors">
+                     <X className="w-4 h-4 text-gray-600" />
+                   </button>
+                 </div>
+               </div>
+               <div className="flex-1 overflow-y-auto p-4 space-y-3 pb-[80px] md:pb-4">
+                 {notices.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center h-40 text-gray-400">
+                      <p>등록된 공지사항이 없습니다.</p>
+                    </div>
+                 ) : (
+                    notices.map(notice => (
+                      <div 
+                        key={notice.id} 
+                        className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-start justify-between gap-4 cursor-pointer hover:bg-gray-50 transition-colors"
+                        onClick={() => {
+                          setEditingNotice(notice);
+                          setNoticeText(notice.text);
+                          setIsNoticeModalOpen(true);
+                        }}
+                      >
+                        <p className={`flex-1 text-sm pt-1 ${notice.isCompleted ? 'text-gray-400 line-through' : 'text-gray-900'}`}>
+                          {notice.text}
+                        </p>
+                        <div className="flex flex-shrink-0 items-center gap-2">
+                          {!notice.isCompleted && (
+                            <button onClick={(e) => { e.stopPropagation(); setNoticeToComplete(notice.id); }} className="px-2 py-1.5 bg-green-50 text-green-600 rounded-md text-xs font-semibold hover:bg-green-100 transition-colors">완료</button>
+                          )}
+                          <button onClick={(e) => { e.stopPropagation(); setNoticeToDelete(notice.id); }} className="px-2 py-1.5 bg-red-50 text-red-600 rounded-md text-xs font-semibold hover:bg-red-100 transition-colors">삭제</button>
+                        </div>
+                      </div>
+                    ))
+                 )}
+               </div>
+            </div>
+          </div>
         </div>
 
         {/* Bottom Navigation */}
-        <div className="md:hidden absolute bottom-0 left-0 right-0 bg-white border-t border-gray-100 flex items-center justify-around py-2 px-4 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-20">
+        <div className="md:hidden absolute bottom-0 left-0 right-0 bg-white border-t border-gray-100 flex items-center justify-around py-2 px-4 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-40">
           <button
             onClick={() => handleTabChange('calendar')}
             className={`flex flex-col items-center gap-1 p-2 rounded-lg transition-colors ${activeTab === 'calendar' ? 'text-blue-600' : 'text-gray-400 hover:text-gray-600'}`}
@@ -954,10 +1125,164 @@ export default function App() {
             </svg>
             <span className="text-[10px] font-medium">출고목록</span>
           </button>
+          <button
+            onClick={() => handleTabChange('notice')}
+            className={`flex flex-col items-center gap-1 p-2 rounded-lg transition-colors ${activeTab === 'notice' ? 'text-red-500' : 'text-gray-400 hover:text-gray-600'}`}
+          >
+            <Bell className="w-5 h-5" />
+            <span className="text-[10px] font-medium">공지</span>
+          </button>
         </div>
 
         {/* Modals */}
         <AnimatePresence>
+          {/* Complete Notice Confirmation Modal */}
+          {noticeToComplete && (
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 z-[60] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
+              onClick={() => setNoticeToComplete(null)}
+            >
+              <motion.div 
+                initial={{ scale: 0.95, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.95, opacity: 0 }}
+                className="bg-white w-full max-w-sm rounded-2xl p-6 shadow-2xl"
+                onClick={e => e.stopPropagation()}
+              >
+                <div className="flex items-center gap-3 mb-4 text-green-600">
+                  <div className="w-10 h-10 bg-green-50 rounded-full flex items-center justify-center">
+                    <CheckSquare className="w-5 h-5" />
+                  </div>
+                  <h3 className="font-bold text-lg text-gray-900">공지 완료</h3>
+                </div>
+                <p className="text-gray-600 mb-6">
+                  이 공지사항을 완료 처리하시겠습니까?<br/>
+                  완료된 공지사항은 취소선이 그어집니다.
+                </p>
+                <div className="flex gap-3">
+                  <button 
+                    onClick={() => setNoticeToComplete(null)}
+                    className="flex-1 py-3 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded-xl transition-colors"
+                  >
+                    취소
+                  </button>
+                  <button 
+                    onClick={confirmCompleteNotice}
+                    className="flex-1 py-3 px-4 bg-green-600 hover:bg-green-700 text-white font-medium rounded-xl transition-colors"
+                  >
+                    완료하기
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+
+          {/* Delete Notice Confirmation Modal */}
+          {noticeToDelete && (
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 z-[60] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
+              onClick={() => setNoticeToDelete(null)}
+            >
+              <motion.div 
+                initial={{ scale: 0.95, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.95, opacity: 0 }}
+                className="bg-white w-full max-w-sm rounded-2xl p-6 shadow-2xl"
+                onClick={e => e.stopPropagation()}
+              >
+                <div className="flex items-center gap-3 mb-4 text-red-600">
+                  <div className="w-10 h-10 bg-red-50 rounded-full flex items-center justify-center">
+                    <Trash2 className="w-5 h-5" />
+                  </div>
+                  <h3 className="font-bold text-lg text-gray-900">공지 삭제</h3>
+                </div>
+                <p className="text-gray-600 mb-6">
+                  이 공지사항을 정말 삭제하시겠습니까?<br/>
+                  이 작업은 되돌릴 수 없습니다.
+                </p>
+                <div className="flex gap-3">
+                  <button 
+                    onClick={() => setNoticeToDelete(null)}
+                    className="flex-1 py-3 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded-xl transition-colors"
+                  >
+                    취소
+                  </button>
+                  <button 
+                    onClick={confirmDeleteNotice}
+                    className="flex-1 py-3 px-4 bg-red-600 hover:bg-red-700 text-white font-medium rounded-xl transition-colors"
+                  >
+                    삭제하기
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+
+          {/* Add / Edit Notice Modal */}
+          {isNoticeModalOpen && (
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 z-[60] flex items-end justify-center bg-black/40 backdrop-blur-sm"
+              onClick={() => setIsNoticeModalOpen(false)}
+            >
+              <motion.div 
+                initial={{ y: '100%' }}
+                animate={{ y: 0 }}
+                exit={{ y: '100%' }}
+                transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                className="bg-white w-full md:w-[500px] md:h-auto md:mb-auto md:mt-20 md:rounded-2xl rounded-t-3xl p-6 shadow-2xl pb-10 md:pb-6"
+                onClick={e => e.stopPropagation()}
+              >
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="font-bold text-lg">{editingNotice ? '공지사항 수정' : '새 공지사항 등록'}</h3>
+                  <button onClick={() => setIsNoticeModalOpen(false)} className="p-2 bg-gray-100 hover:bg-gray-200 rounded-full transition-colors">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                
+                <div className="space-y-5">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">공지 내용</label>
+                    <textarea 
+                      value={noticeText}
+                      onChange={e => setNoticeText(e.target.value)}
+                      placeholder="공지사항 내용을 입력하세요"
+                      rows={4}
+                      className="w-full bg-gray-50 border border-gray-200 px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all resize-none"
+                      autoFocus
+                    />
+                  </div>
+
+                  <div className="flex gap-3 pt-2">
+                    {editingNotice?.isCompleted && (
+                      <button 
+                        onClick={handleUncompleteNotice}
+                        className="flex-1 bg-amber-500 hover:bg-amber-600 text-white font-bold py-4 rounded-xl transition-colors"
+                      >
+                        미완료 처리 (부활)
+                      </button>
+                    )}
+                    <button 
+                      onClick={handleSaveNotice}
+                      disabled={!noticeText.trim()}
+                      className={`flex-1 text-white font-bold py-4 rounded-xl disabled:opacity-50 disabled:bg-gray-300 transition-colors ${editingNotice ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-600 hover:bg-blue-700'}`}
+                    >
+                      {editingNotice ? '수정하기' : '등록하기'}
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+
           {/* Delete Confirmation Modal */}
           {productToDelete && (
             <motion.div 
