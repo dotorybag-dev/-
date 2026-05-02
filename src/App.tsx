@@ -22,7 +22,7 @@ const COLORS = [
   '#22c55e', // Green 500
   '#3b82f6', // Blue 500
   '#a855f7', // Purple 500
-  '#00fff8', // mint
+  '#00a39f', // mint?
 ];
 
 const COLOR_LABELS: Record<string, string> = {
@@ -31,7 +31,7 @@ const COLOR_LABELS: Record<string, string> = {
   '#3b82f6': '출고가능',
   '#eab308': '잔량',
   '#a855f7': '누리',
-  '#00fff8': '지정출고' 
+  '#00a39f': '지정출고' 
 };
 
 const formatDate = (date: Date) => {
