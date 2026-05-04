@@ -140,7 +140,7 @@ export default function App() {
         setProducts(productsData);
 
         const noticesSnapshot = await getDocs(collection(db, 'notices'));
-        const noticesData = noticesSnapshot.docs.map(d => d.data() as Notice).sort((a,b) => b.createdAt - a.createdAt);
+        const noticesData = noticesSnapshot.docs.map(d => d.data() as Notice).sort((a,b) => a.createdAt - b.createdAt);
         setNotices(noticesData);
 
         const holidaysDoc = await getDoc(doc(db, 'settings', 'holidays'));
@@ -683,7 +683,7 @@ export default function App() {
         createdAt: Date.now(),
       };
       
-      setNotices([newNotice, ...notices]);
+      setNotices([...notices, newNotice]);
       setNoticeText('');
       setIsNoticeModalOpen(false);
       
