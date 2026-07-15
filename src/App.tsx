@@ -34,7 +34,7 @@ const COLORS = [
 
 const COLOR_LABELS: Record<string, string> = {
   '#ef4444': '중요',
-  '#22c55e': '접지중',
+  '#22c55e': '메모',
   '#3b82f6': '출고가능',
   '#eab308': '잔량',
   '#a855f7': '누리',
