@@ -226,20 +226,26 @@ export default function App() {
   const [calendarSwipeStart, setCalendarSwipeStart] = useState<{x: number, y: number} | null>(null);
   const wheelTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const handleCalendarWheel = (e: React.WheelEvent) => {
+  const handleCalendarWheel = (e: React.WheelEvent<HTMLDivElement>) => {
     if (wheelTimeoutRef.current) return;
     
+    const target = e.currentTarget;
+    const isAtTop = target.scrollTop <= 0;
+    const isAtBottom = target.scrollHeight - target.scrollTop <= target.clientHeight + 1;
+
     // Check if scrolling down (next month) or up (prev month)
     if (Math.abs(e.deltaY) > 20) {
-      if (e.deltaY > 0) {
+      if (e.deltaY > 0 && isAtBottom) {
         handleNextMonth();
-      } else {
+        wheelTimeoutRef.current = setTimeout(() => {
+          wheelTimeoutRef.current = null;
+        }, 500); // 500ms debounce
+      } else if (e.deltaY < 0 && isAtTop) {
         handlePrevMonth();
+        wheelTimeoutRef.current = setTimeout(() => {
+          wheelTimeoutRef.current = null;
+        }, 500); // 500ms debounce
       }
-      
-      wheelTimeoutRef.current = setTimeout(() => {
-        wheelTimeoutRef.current = null;
-      }, 500); // 500ms debounce
     }
   };
 
