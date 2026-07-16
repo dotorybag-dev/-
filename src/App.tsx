@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { ChevronLeft, ChevronRight, Plus, Image as ImageIcon, Palette, Trash2, X, Calendar as CalendarIcon, Monitor, CheckSquare, Square, Bell } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
@@ -220,6 +220,61 @@ export default function App() {
       }
     }
     setSwipeStart(null);
+  };
+
+  // Calendar Swipe/Scroll State
+  const [calendarSwipeStart, setCalendarSwipeStart] = useState<{x: number, y: number} | null>(null);
+  const wheelTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handleCalendarWheel = (e: React.WheelEvent) => {
+    if (wheelTimeoutRef.current) return;
+    
+    // Check if scrolling down (next month) or up (prev month)
+    if (Math.abs(e.deltaY) > 20) {
+      if (e.deltaY > 0) {
+        handleNextMonth();
+      } else {
+        handlePrevMonth();
+      }
+      
+      wheelTimeoutRef.current = setTimeout(() => {
+        wheelTimeoutRef.current = null;
+      }, 500); // 500ms debounce
+    }
+  };
+
+  const handleCalendarSwipeStart = (e: React.TouchEvent | React.MouseEvent) => {
+    if ('touches' in e) {
+      setCalendarSwipeStart({ x: e.touches[0].clientX, y: e.touches[0].clientY });
+    } else {
+      setCalendarSwipeStart({ x: e.clientX, y: e.clientY });
+    }
+  };
+
+  const handleCalendarSwipeEnd = (e: React.TouchEvent | React.MouseEvent) => {
+    if (!calendarSwipeStart) return;
+
+    let endX, endY;
+    if ('changedTouches' in e) {
+      endX = e.changedTouches[0].clientX;
+      endY = e.changedTouches[0].clientY;
+    } else {
+      endX = (e as React.MouseEvent).clientX;
+      endY = (e as React.MouseEvent).clientY;
+    }
+
+    const distanceX = calendarSwipeStart.x - endX;
+    const distanceY = calendarSwipeStart.y - endY;
+    const minSwipeDistance = 50;
+    
+    if (Math.abs(distanceX) > Math.abs(distanceY) && Math.abs(distanceX) > minSwipeDistance) {
+      if (distanceX > 0) {
+        handleNextMonth();
+      } else {
+        handlePrevMonth();
+      }
+    }
+    setCalendarSwipeStart(null);
   };
 
   // Snip State
@@ -842,7 +897,15 @@ export default function App() {
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto px-4 pb-4">
+            <div 
+              className="flex-1 overflow-y-auto px-4 pb-4"
+              onWheel={handleCalendarWheel}
+              onTouchStart={handleCalendarSwipeStart}
+              onTouchEnd={handleCalendarSwipeEnd}
+              onMouseDown={handleCalendarSwipeStart}
+              onMouseUp={handleCalendarSwipeEnd}
+              onMouseLeave={() => setCalendarSwipeStart(null)}
+            >
               <div className="grid grid-cols-7 gap-px bg-gray-200 border border-gray-200 rounded-lg overflow-hidden">
                 {/* Days Header */}
                 {['일', '월', '화', '수', '목', '금', '토'].map((day, i) => (
