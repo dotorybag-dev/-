@@ -790,6 +790,16 @@ export default function App() {
                               e.stopPropagation();
                               handleDragStart(e, p.id);
                             }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (window.innerWidth < 768) {
+                                setEditingProduct(p);
+                                setNewName(p.name);
+                                setNewColor(p.textColor);
+                                setSelectedDate(new Date(p.date));
+                                setIsAddModalOpen(true);
+                              }
+                            }}
                             onDoubleClick={(e) => {
                               e.stopPropagation();
                               setEditingProduct(p);
@@ -903,11 +913,19 @@ export default function App() {
                   >
                     <button 
                       className="flex-1 flex items-center gap-2 text-left select-none"
-                      onClick={() => {
+                      onClick={(e) => {
                         // Prevent accidental mobile navigation if needed, 
                         // but maybe we just want to select it for selection mode?
                         // For now we do nothing on single click or maybe something else?
                         // Actually let's keep it simple.
+                        if (window.innerWidth < 768) {
+                          e.stopPropagation();
+                          setEditingProduct(product);
+                          setNewName(product.name);
+                          setNewColor(product.textColor);
+                          setSelectedDate(new Date(product.date));
+                          setIsAddModalOpen(true);
+                        }
                       }}
                       onDoubleClick={() => {
                         setEditingProduct(product);
