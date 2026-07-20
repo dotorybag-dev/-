@@ -51,15 +51,6 @@ const formatDate = (date: Date) => {
 const getDaysInMonth = (year: number, month: number) => new Date(year, month + 1, 0).getDate();
 const getFirstDayOfMonth = (year: number, month: number) => new Date(year, month, 1).getDay();
 
-const createImage = (url: string): Promise<HTMLImageElement> =>
-  new Promise((resolve, reject) => {
-    const image = new Image();
-    image.addEventListener('load', () => resolve(image));
-    image.addEventListener('error', (error) => reject(error));
-    image.setAttribute('crossOrigin', 'anonymous');
-    image.src = url;
-  });
-
 const generateId = () => {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
     return crypto.randomUUID();
@@ -81,7 +72,6 @@ export default function App() {
   const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
   const [activeTab, setActiveTab] = useState<'calendar' | 'list' | 'notice'>('calendar');
 
-  const [viewImageProduct, setViewImageProduct] = useState<Product | null>(null);
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
   const [orderImageUrl, setOrderImageUrl] = useState<string | null>(null);
   const [isUploadingOrder, setIsUploadingOrder] = useState(false);
@@ -106,10 +96,6 @@ export default function App() {
 
   useEffect(() => {
     const handlePopState = (e: PopStateEvent) => {
-      if (viewImageProduct) {
-        setViewImageProduct(null);
-        return;
-      }
       if (isOrderModalOpen) {
         setIsOrderModalOpen(false);
         return;
@@ -125,7 +111,7 @@ export default function App() {
     };
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, [viewImageProduct, isOrderModalOpen]);
+  }, [isOrderModalOpen]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -173,8 +159,6 @@ export default function App() {
   // Add Product Form State
   const [newName, setNewName] = useState('');
   const [newColor, setNewColor] = useState(COLORS[0]);
-  const [newImage, setNewImage] = useState<string | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
 
   // Swipe State
   const [swipeStart, setSwipeStart] = useState<{x: number, y: number} | null>(null);
@@ -283,140 +267,6 @@ export default function App() {
     setCalendarSwipeStart(null);
   };
 
-  // Snip State
-  const [snipState, setSnipState] = useState({
-    image: null as string | null,
-    isDragging: false,
-    startX: 0,
-    startY: 0,
-    currentX: 0,
-    currentY: 0,
-    naturalWidth: 0,
-    naturalHeight: 0,
-    containerW: 0,
-    containerH: 0,
-  });
-
-  const handleScreenCapture = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
-      const video = document.createElement('video');
-      video.srcObject = stream;
-      video.autoplay = true;
-      video.playsInline = true;
-      video.muted = true;
-      
-      video.onloadedmetadata = () => {
-        video.play();
-        setTimeout(() => {
-          const canvas = document.createElement('canvas');
-          canvas.width = video.videoWidth;
-          canvas.height = video.videoHeight;
-          const ctx = canvas.getContext('2d');
-          if (ctx) {
-            ctx.drawImage(video, 0, 0);
-            const dataUrl = canvas.toDataURL('image/jpeg');
-            setSnipState({
-              image: dataUrl,
-              isDragging: false,
-              startX: 0, startY: 0, currentX: 0, currentY: 0,
-              naturalWidth: video.videoWidth,
-              naturalHeight: video.videoHeight,
-              containerW: window.innerWidth,
-              containerH: window.innerHeight,
-            });
-          }
-          stream.getTracks().forEach(track => track.stop());
-        }, 500);
-      };
-    } catch (err) {
-      console.error("Error capturing screen:", err);
-      alert("화면 캡쳐를 취소했거나 지원하지 않는 브라우저/기기입니다.");
-    }
-  };
-
-  const handlePointerDown = (e: React.PointerEvent) => {
-    setSnipState(s => ({
-      ...s,
-      isDragging: true,
-      startX: e.clientX,
-      startY: e.clientY,
-      currentX: e.clientX,
-      currentY: e.clientY,
-      containerW: window.innerWidth,
-      containerH: window.innerHeight,
-    }));
-  };
-
-  const handlePointerMove = (e: React.PointerEvent) => {
-    if (!snipState.isDragging) return;
-    setSnipState(s => ({
-      ...s,
-      currentX: e.clientX,
-      currentY: e.clientY
-    }));
-  };
-
-  const handlePointerUp = async (e: React.PointerEvent) => {
-    if (!snipState.isDragging) return;
-    
-    const { startX, startY, currentX, currentY, naturalWidth, naturalHeight, image, containerW, containerH } = snipState;
-    setSnipState(s => ({ ...s, isDragging: false }));
-
-    const dragX = Math.min(startX, currentX);
-    const dragY = Math.min(startY, currentY);
-    const dragW = Math.abs(currentX - startX);
-    const dragH = Math.abs(currentY - startY);
-
-    if (dragW < 10 || dragH < 10) return;
-    if (!image) return;
-
-    const imgRatio = naturalWidth / naturalHeight;
-    const containerRatio = containerW / containerH;
-
-    let renderWidth, renderHeight, offsetX, offsetY;
-    if (imgRatio > containerRatio) {
-       renderWidth = containerW;
-       renderHeight = containerW / imgRatio;
-       offsetX = 0;
-       offsetY = (containerH - renderHeight) / 2;
-    } else {
-       renderHeight = containerH;
-       renderWidth = containerH * imgRatio;
-       offsetX = (containerW - renderWidth) / 2;
-       offsetY = 0;
-    }
-
-    const scale = naturalWidth / renderWidth;
-    
-    const clampedDragX = Math.max(offsetX, Math.min(dragX, offsetX + renderWidth));
-    const clampedDragY = Math.max(offsetY, Math.min(dragY, offsetY + renderHeight));
-    const clampedDragMaxX = Math.max(offsetX, Math.min(dragX + dragW, offsetX + renderWidth));
-    const clampedDragMaxY = Math.max(offsetY, Math.min(dragY + dragH, offsetY + renderHeight));
-
-    const finalDragW = clampedDragMaxX - clampedDragX;
-    const finalDragH = clampedDragMaxY - clampedDragY;
-
-    if (finalDragW < 10 || finalDragH < 10) return;
-
-    const cropX = (clampedDragX - offsetX) * scale;
-    const cropY = (clampedDragY - offsetY) * scale;
-    const cropW = finalDragW * scale;
-    const cropH = finalDragH * scale;
-
-    const imgElement = await createImage(image);
-    const canvas = document.createElement('canvas');
-    canvas.width = cropW;
-    canvas.height = cropH;
-    const ctx = canvas.getContext('2d');
-    if (ctx) {
-      ctx.drawImage(imgElement, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
-      const croppedDataUrl = canvas.toDataURL('image/jpeg');
-      setNewImage(croppedDataUrl);
-      setSnipState(s => ({ ...s, image: null }));
-    }
-  };
-
   const days = useMemo(() => {
     const year = currentMonth.getFullYear();
     const month = currentMonth.getMonth();
@@ -483,34 +333,12 @@ export default function App() {
 
   const handleSaveProduct = async () => {
     if (!newName.trim()) return;
-    
-    setIsUploading(true);
-    let finalImageUrl = newImage || '';
-
-    if (newImage && newImage.startsWith('data:image')) {
-      if (storage) {
-        try {
-          const imageRef = ref(storage, `products/${Date.now()}_${Math.random().toString(36).substring(7)}.jpg`);
-          await uploadString(imageRef, newImage, 'data_url');
-          finalImageUrl = await getDownloadURL(imageRef);
-        } catch (error: any) {
-          console.error("Firebase upload failed:", error);
-          alert(`이미지 업로드에 실패했습니다.\n사유: ${error.message || error}\nFirebase 설정이나 보안 규칙을 다시 확인해주세요.`);
-          setIsUploading(false);
-          return;
-        }
-      } else {
-        alert("Firebase가 설정되지 않아 이미지를 저장할 수 없습니다. 환경변수를 설정해주세요.");
-        setIsUploading(false);
-        return;
-      }
-    }
 
     if (editingProduct) {
       const updatedProduct = {
         ...editingProduct,
         name: newName,
-        imageUrl: finalImageUrl,
+        imageUrl: '',
         textColor: newColor,
         date: selectedDateString,
       };
@@ -529,7 +357,7 @@ export default function App() {
         id: generateId(),
         date: selectedDateString,
         name: newName,
-        imageUrl: finalImageUrl,
+        imageUrl: '',
         textColor: newColor,
       };
       
@@ -547,21 +375,12 @@ export default function App() {
 
     setNewName('');
     setNewColor(COLORS[0]);
-    setNewImage(null);
     setEditingProduct(null);
     setIsAddModalOpen(false);
-    setIsUploading(false);
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setNewImage(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
+  const handleDeleteProduct = async (id: string) => {
+    setProductToDelete(id);
   };
 
   const handleOrderImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -605,10 +424,6 @@ export default function App() {
       setIsUploadingOrder(false);
     };
     reader.readAsDataURL(file);
-  };
-
-  const handleDeleteProduct = async (id: string) => {
-    setProductToDelete(id);
   };
 
   const confirmDeleteProduct = async () => {
@@ -938,6 +753,14 @@ export default function App() {
                         setSelectedDate(date);
                         handleTabChange('list');
                       }}
+                      onDoubleClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedDate(date);
+                        setEditingProduct(null);
+                        setNewName('');
+                        setNewColor(COLORS[0]);
+                        setIsAddModalOpen(true);
+                      }}
                       onDragOver={handleDragOver}
                       onDrop={(e) => handleDrop(e, date)}
                       className={`
@@ -966,6 +789,14 @@ export default function App() {
                             onDragStart={(e) => {
                               e.stopPropagation();
                               handleDragStart(e, p.id);
+                            }}
+                            onDoubleClick={(e) => {
+                              e.stopPropagation();
+                              setEditingProduct(p);
+                              setNewName(p.name);
+                              setNewColor(p.textColor);
+                              setSelectedDate(new Date(p.date));
+                              setIsAddModalOpen(true);
                             }}
                           >
                             {p.name}
@@ -1071,10 +902,19 @@ export default function App() {
                     }}
                   >
                     <button 
-                      className="flex-1 flex items-center gap-2 text-left"
+                      className="flex-1 flex items-center gap-2 text-left select-none"
                       onClick={() => {
-                        setViewImageProduct(product);
-                        window.history.pushState({ modal: 'image' }, '');
+                        // Prevent accidental mobile navigation if needed, 
+                        // but maybe we just want to select it for selection mode?
+                        // For now we do nothing on single click or maybe something else?
+                        // Actually let's keep it simple.
+                      }}
+                      onDoubleClick={() => {
+                        setEditingProduct(product);
+                        setNewName(product.name);
+                        setNewColor(product.textColor);
+                        setSelectedDate(new Date(product.date));
+                        setIsAddModalOpen(true);
                       }}
                     >
                       <span className="font-medium text-sm truncate" style={{ color: product.textColor }}>
@@ -1495,90 +1335,6 @@ export default function App() {
             </motion.div>
           )}
 
-          {/* Image Modal */}
-          {viewImageProduct && (
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-6"
-              onClick={() => {
-                setViewImageProduct(null);
-                if (window.history.state?.modal === 'image') {
-                  window.history.back();
-                }
-              }}
-            >
-              <motion.div 
-                initial={{ scale: 0.9, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0.9, opacity: 0 }}
-                className="bg-white rounded-3xl overflow-hidden w-full max-w-sm shadow-2xl"
-                onClick={e => e.stopPropagation()}
-              >
-                {viewImageProduct.imageUrl ? (
-                  <div className="relative aspect-square w-full bg-gray-50 flex items-center justify-center">
-                    <img 
-                      src={viewImageProduct.imageUrl} 
-                      alt={viewImageProduct.name} 
-                      className="w-full h-full object-cover"
-                      referrerPolicy="no-referrer"
-                    />
-                    <button 
-                      onClick={() => {
-                        setViewImageProduct(null);
-                        if (window.history.state?.modal === 'image') {
-                          window.history.back();
-                        }
-                      }}
-                      className="absolute top-4 right-4 w-8 h-8 bg-black/50 backdrop-blur-md rounded-full flex items-center justify-center text-white hover:bg-black/70 transition-colors"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-                ) : (
-                  <div className="flex justify-end p-4 pb-0">
-                    <button 
-                      onClick={() => {
-                        setViewImageProduct(null);
-                        if (window.history.state?.modal === 'image') {
-                          window.history.back();
-                        }
-                      }}
-                      className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center text-gray-500 hover:bg-gray-200 transition-colors"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-                )}
-                <div className="p-5">
-                  <div className="flex items-center justify-between mb-1">
-                    <h3 className="font-bold text-lg" style={{ color: viewImageProduct.textColor }}>
-                      {viewImageProduct.name}
-                    </h3>
-                    <button 
-                      onClick={() => {
-                        setEditingProduct(viewImageProduct);
-                        setNewName(viewImageProduct.name);
-                        setNewColor(viewImageProduct.textColor);
-                        setNewImage(viewImageProduct.imageUrl);
-                        setSelectedDate(new Date(viewImageProduct.date));
-                        setViewImageProduct(null);
-                        setIsAddModalOpen(true);
-                      }}
-                      className="text-sm font-medium text-blue-600 hover:text-blue-700 bg-blue-50 px-3 py-1 rounded-full transition-colors"
-                    >
-                      수정
-                    </button>
-                  </div>
-                  <p className="text-sm text-gray-500">
-                    출고일: {viewImageProduct.date}
-                  </p>
-                </div>
-              </motion.div>
-            </motion.div>
-          )}
-
           {/* Purchase Order Modal */}
           {isOrderModalOpen && (
             <motion.div 
@@ -1790,46 +1546,6 @@ export default function App() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">제품 사진</label>
-                    <div className="flex items-center gap-3">
-                      {newImage ? (
-                        <div className="relative w-16 h-16 rounded-xl overflow-hidden border border-gray-200">
-                          <img src={newImage} alt="Preview" className="w-full h-full object-cover" />
-                          <button
-                            onClick={() => setNewImage(null)}
-                            className="absolute top-1 right-1 w-5 h-5 bg-black/50 rounded-full flex items-center justify-center text-white hover:bg-black/70"
-                          >
-                            <X className="w-3 h-3" />
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="flex gap-2">
-                          <label className="w-16 h-16 rounded-xl border-2 border-dashed border-gray-300 flex flex-col items-center justify-center text-gray-400 hover:border-blue-500 hover:text-blue-500 cursor-pointer transition-colors bg-gray-50">
-                            <ImageIcon className="w-5 h-5 mb-1" />
-                            <span className="text-[10px] font-medium">사진 등록</span>
-                            <input 
-                              type="file" 
-                              accept="image/*" 
-                              onChange={handleImageUpload} 
-                              className="hidden" 
-                            />
-                          </label>
-                          <button
-                            onClick={handleScreenCapture}
-                            className="w-16 h-16 rounded-xl border-2 border-dashed border-gray-300 flex flex-col items-center justify-center text-gray-400 hover:border-blue-500 hover:text-blue-500 cursor-pointer transition-colors bg-gray-50"
-                          >
-                            <Monitor className="w-5 h-5 mb-1" />
-                            <span className="text-[10px] font-medium">화면 캡쳐</span>
-                          </button>
-                        </div>
-                      )}
-                      <p className="text-xs text-gray-500 flex-1">
-                        {newImage ? '사진이 등록되었습니다.' : '제품 사진을 선택해주세요. (선택사항)'}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">표시 색상</label>
                     <div className="flex gap-3 overflow-x-auto pb-2 -mx-2 px-2 snap-x">
                       {COLORS.map(color => (
@@ -1854,10 +1570,10 @@ export default function App() {
 
                   <button 
                     onClick={handleSaveProduct}
-                    disabled={!newName.trim() || isUploading}
+                    disabled={!newName.trim()}
                     className="w-full bg-blue-600 text-white font-bold py-4 rounded-xl mt-4 disabled:opacity-50 disabled:bg-gray-300 transition-colors flex items-center justify-center"
                   >
-                    {isUploading ? '사진 업로드 중...' : (editingProduct ? '수정하기' : '등록하기')}
+                    {editingProduct ? '수정하기' : '등록하기'}
                   </button>
                 </div>
               </motion.div>
