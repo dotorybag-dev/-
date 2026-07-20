@@ -1280,60 +1280,6 @@ export default function App() {
             </motion.div>
           )}
 
-          {/* Snip Modal */}
-          {snipState.image && (
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[80] bg-black select-none touch-none cursor-crosshair"
-              onPointerDown={handlePointerDown}
-              onPointerMove={handlePointerMove}
-              onPointerUp={handlePointerUp}
-            >
-              <img 
-                src={snipState.image} 
-                className="absolute inset-0 w-full h-full object-contain pointer-events-none opacity-40" 
-                draggable={false}
-              />
-              {snipState.isDragging && (
-                <div 
-                  className="absolute border-2 border-blue-500 bg-transparent overflow-hidden"
-                  style={{
-                    left: Math.min(snipState.startX, snipState.currentX),
-                    top: Math.min(snipState.startY, snipState.currentY),
-                    width: Math.abs(snipState.currentX - snipState.startX),
-                    height: Math.abs(snipState.currentY - snipState.startY),
-                  }}
-                >
-                  <img 
-                    src={snipState.image} 
-                    className="absolute max-w-none pointer-events-none"
-                    style={{
-                      width: snipState.containerW,
-                      height: snipState.containerH,
-                      objectFit: 'contain',
-                      left: -Math.min(snipState.startX, snipState.currentX),
-                      top: -Math.min(snipState.startY, snipState.currentY),
-                    }}
-                    draggable={false}
-                  />
-                </div>
-              )}
-              <div className="absolute top-8 left-0 right-0 text-center pointer-events-none">
-                <p className="bg-black/70 text-white inline-block px-4 py-2 rounded-full text-sm font-medium">
-                  캡쳐할 영역을 드래그하세요
-                </p>
-              </div>
-              <button 
-                onPointerDown={(e) => e.stopPropagation()}
-                onClick={() => setSnipState(s => ({...s, image: null}))}
-                className="absolute top-6 right-6 w-10 h-10 bg-white/20 hover:bg-white/40 rounded-full flex items-center justify-center text-white z-10 transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </motion.div>
-          )}
 
           {/* Purchase Order Modal */}
           {isOrderModalOpen && (
