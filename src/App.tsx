@@ -160,6 +160,19 @@ export default function App() {
   const [newName, setNewName] = useState('');
   const [newColor, setNewColor] = useState(COLORS[0]);
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (isAddModalOpen) {
+          setIsAddModalOpen(false);
+          setEditingProduct(null);
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isAddModalOpen]);
+
   // Swipe State
   const [swipeStart, setSwipeStart] = useState<{x: number, y: number} | null>(null);
 
@@ -668,7 +681,6 @@ export default function App() {
               setEditingProduct(null);
               setNewName('');
               setNewColor(COLORS[0]);
-              setNewImage(null);
               setIsAddModalOpen(true);
             }}
             className="w-8 h-8 bg-gray-50 hover:bg-gray-100 rounded-full flex items-center justify-center transition-colors"
