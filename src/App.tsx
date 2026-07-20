@@ -802,16 +802,6 @@ export default function App() {
                               e.stopPropagation();
                               handleDragStart(e, p.id);
                             }}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (window.innerWidth < 768) {
-                                setEditingProduct(p);
-                                setNewName(p.name);
-                                setNewColor(p.textColor);
-                                setSelectedDate(new Date(p.date));
-                                setIsAddModalOpen(true);
-                              }
-                            }}
                             onDoubleClick={(e) => {
                               e.stopPropagation();
                               setEditingProduct(p);
