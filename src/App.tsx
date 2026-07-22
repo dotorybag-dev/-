@@ -24,7 +24,7 @@ type Notice = {
 const COLORS = [
   '#111827', // Gray 900
   '#ef4444', // Red 500
-  '#f97316', // Orange 500
+  '#f0831f', // Orange
   '#eab308', // Yellow 500
   '#22c55e', // Green 500
   '#3b82f6', // Blue 500
@@ -38,7 +38,7 @@ const COLOR_LABELS: Record<string, string> = {
   '#3b82f6': '출고가능',
   '#eab308': '잔량',
   '#a855f7': '누리',
-  '#00a39f': '지정출고' 
+  '#f0831f': '지정출고' 
 };
 
 const formatDate = (date: Date) => {
@@ -84,6 +84,27 @@ export default function App() {
   const [noticeToComplete, setNoticeToComplete] = useState<string | null>(null);
   const [noticeToDelete, setNoticeToDelete] = useState<string | null>(null);
 
+  useEffect(() => {
+    const handlePopState = () => {
+      if (isNoticeModalOpen) {
+        setIsNoticeModalOpen(false);
+        setEditingNotice(null);
+      }
+    };
+
+    if (isNoticeModalOpen) {
+      window.history.pushState({ modal: 'notice' }, '');
+      window.addEventListener('popstate', handlePopState);
+    }
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+      if (isNoticeModalOpen && window.history.state?.modal === 'notice') {
+        window.history.back();
+      }
+    };
+  }, [isNoticeModalOpen]);
+
   const handleTabChange = (tab: 'calendar' | 'list' | 'notice') => {
     if (tab === activeTab) return;
     if (tab === 'list' || tab === 'notice') {
@@ -98,6 +119,10 @@ export default function App() {
     const handlePopState = (e: PopStateEvent) => {
       if (isOrderModalOpen) {
         setIsOrderModalOpen(false);
+        return;
+      }
+      
+      if (e.state?.modal) {
         return;
       }
       
@@ -170,7 +195,26 @@ export default function App() {
       }
     };
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+
+    const handlePopState = () => {
+      if (isAddModalOpen) {
+        setIsAddModalOpen(false);
+        setEditingProduct(null);
+      }
+    };
+
+    if (isAddModalOpen) {
+      window.history.pushState({ modal: 'add' }, '');
+      window.addEventListener('popstate', handlePopState);
+    }
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('popstate', handlePopState);
+      if (isAddModalOpen && window.history.state?.modal === 'add') {
+        window.history.back();
+      }
+    };
   }, [isAddModalOpen]);
 
   // Swipe State
