@@ -1549,6 +1549,12 @@ export default function App() {
                       type="text" 
                       value={newName}
                       onChange={e => setNewName(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter' && newName.trim()) {
+                          e.preventDefault();
+                          handleSaveProduct();
+                        }
+                      }}
                       placeholder="제품명을 입력하세요"
                       className="w-full bg-gray-50 border border-gray-200 px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
                       autoFocus
